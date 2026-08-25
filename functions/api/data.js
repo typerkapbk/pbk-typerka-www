@@ -117,26 +117,29 @@ export async function onRequestGet(context) {
     const token = await getGoogleAccessToken(context.env);
 
     const [
-      generalka,
-      tabelaKolejki,
-      ms,
-      tt
-    ] = await Promise.all([
-      getSheetRange(context.env, token, "GENERALKA!A1:I20"),
-      getSheetRange(context.env, token, "'TABELA KOLEJKI'!A1:H20"),
-      getSheetRange(context.env, token, "'M&S'!A1:AT30"),
-      getSheetRange(context.env, token, "TT!A1:BG80")
-    ]);
+  generalka,
+  tabelaKolejki,
+  ms,
+  tt,
+  aktualnosci
+] = await Promise.all([
+  getSheetRange(context.env, token, "GENERALKA!A1:I20"),
+  getSheetRange(context.env, token, "'TABELA KOLEJKI'!A1:H20"),
+  getSheetRange(context.env, token, "'M&S'!A1:AT30"),
+  getSheetRange(context.env, token, "TT!A1:BG80"),
+  getSheetRange(context.env, token, "'WWW_AKTUALNOSCI'!A1:F200")
+]);
 
     return Response.json({
       ok: true,
       timestamp: new Date().toISOString(),
       sheets: {
-        GENERALKA: generalka,
-        TABELA_KOLEJKI: tabelaKolejki,
-        MS: ms,
-        TT: tt
-      }
+  GENERALKA: generalka,
+  TABELA_KOLEJKI: tabelaKolejki,
+  MS: ms,
+  TT: tt,
+  AKTUALNOSCI: aktualnosci
+}
     });
   } catch (error) {
     return Response.json(
