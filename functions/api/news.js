@@ -6,7 +6,9 @@ function base64url(input) {
 }
 
 function base64urlToBytes(input) {
-  input = input.replace(/-/g, "+").replace(/_/g, "/");
+  input = input
+    .replace(/-/g, "+")
+    .replace(/_/g, "/");
 
   while (input.length % 4) {
     input += "=";
@@ -24,7 +26,9 @@ function base64urlToBytes(input) {
 
 function decodeJwtPart(part) {
   const bytes = base64urlToBytes(part);
-  return JSON.parse(new TextDecoder().decode(bytes));
+  return JSON.parse(
+    new TextDecoder().decode(bytes)
+  );
 }
 
 function pemToArrayBuffer(pem) {
@@ -43,101 +47,84 @@ function pemToArrayBuffer(pem) {
   return bytes.buffer;
 }
 
-async function getGoogleAccessToken(env) {
-  const now = Math.floor(Date.now() / 1000);
+function normalizeTeamDomain(value) {
+  let domain = String(value || "").trim();
 
-  const header = {
-    alg: "RS256",
-    typ: "JWT"
-  };
+  if (!domain) {
+    return "";
+  }
 
-  const payload = {
-    iss: env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
-    scope: "https://www.googleapis.com/auth/spreadsheets",
-    aud: "https://oauth2.googleapis.com/token",
-    iat: now,
-    exp: now + 3600
-  };
+  if (
+    !domain.startsWith("https://") &&
+    !domain.startsWith("http://")
+  ) {
+    domain = "https://" + domain;
+  }
 
-  const encodedHeader = base64url(JSON.stringify(header));
-  const encodedPayload = base64url(JSON.stringify(payload));
-  const unsignedToken = `${encodedHeader}.${encodedPayload}`;
+  return domain.replace(/\/+$/, "");
+}
 
-  const privateKey = env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, "\n");
+async function verifyCloudflareAccess(
+  request,
+  env
+) {
+  const teamDomain =
+    normalizeTeamDomain(env.TEAM_DOMAIN);
 
-  const cryptoKey = await crypto.subtle.importKey(
-    "pkcs8",
-    pemToArrayBuffer(privateKey),
-    {
-      name: "RSASSA-PKCS1-v1_5",
-      hash: "SHA-256"
-    },
-    false,
-    ["sign"]
-  );
+  const expectedAud =
+    String(env.POLICY_AUD || "").trim();
 
-  const signature = await crypto.subtle.sign(
-    "RSASSA-PKCS1-v1_5",
-    cryptoKey,
-    new TextEncoder().encode(unsignedToken)
-  );
-
-  const signatureString = String.fromCharCode(
-    ...new Uint8Array(signature)
-  );
-
-  const jwt = `${unsignedToken}.${base64url(signatureString)}`;
-
-  const response = await fetch(
-    "https://oauth2.googleapis.com/token",
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded"
-      },
-      body: new URLSearchParams({
-        grant_type:
-          "urn:ietf:params:oauth:grant-type:jwt-bearer",
-        assertion: jwt
-      })
-    }
-  );
-
-  const result = await response.json();
-
-  if (!response.ok) {
+  if (!teamDomain) {
     throw new Error(
-      "Google authentication failed: " +
-        JSON.stringify(result)
+      "Brak zmiennej TEAM_DOMAIN w Cloudflare."
     );
   }
 
-  return result.access_token;
-}
+  if (!expectedAud) {
+    throw new Error(
+      "Brak zmiennej POLICY_AUD w Cloudflare."
+    );
+  }
 
-async function verifyCloudflareAccess(request, env) {
   const token =
-    request.headers.get("Cf-Access-Jwt-Assertion");
+    request.headers.get(
+      "Cf-Access-Jwt-Assertion"
+    );
 
   if (!token) {
-    throw new Error("Brak tokenu Cloudflare Access.");
+    throw new Error(
+      "Brak tokenu Cloudflare Access."
+    );
   }
 
   const parts = token.split(".");
 
   if (parts.length !== 3) {
-    throw new Error("Nieprawidłowy token Cloudflare Access.");
+    throw new Error(
+      "Nieprawidłowy token Cloudflare Access."
+    );
   }
 
-  const header = decodeJwtPart(parts[0]);
-  const payload = decodeJwtPart(parts[1]);
+  const header =
+    decodeJwtPart(parts[0]);
 
-  const teamDomain = String(env.TEAM_DOMAIN || "")
-    .replace(/\/+$/, "");
+  const payload =
+    decodeJwtPart(parts[1]);
 
-  const certsResponse = await fetch(
-    `${teamDomain}/cdn-cgi/access/certs`
-  );
+  if (
+    header.alg &&
+    header.alg !== "RS256"
+  ) {
+    throw new Error(
+      "Nieobsługiwany algorytm JWT."
+    );
+  }
+
+  const certsUrl =
+    `${teamDomain}/cdn-cgi/access/certs`;
+
+  const certsResponse =
+    await fetch(certsUrl);
 
   if (!certsResponse.ok) {
     throw new Error(
@@ -145,28 +132,37 @@ async function verifyCloudflareAccess(request, env) {
     );
   }
 
-  const certs = await certsResponse.json();
+  const certs =
+    await certsResponse.json();
 
-  const jwk = certs.keys.find(
-    key => key.kid === header.kid
-  );
-
-  if (!jwk) {
+  if (!Array.isArray(certs.keys)) {
     throw new Error(
-      "Nie znaleziono klucza podpisu Cloudflare."
+      "Cloudflare nie zwrócił prawidłowych kluczy."
     );
   }
 
-  const publicKey = await crypto.subtle.importKey(
-    "jwk",
-    jwk,
-    {
-      name: "RSASSA-PKCS1-v1_5",
-      hash: "SHA-256"
-    },
-    false,
-    ["verify"]
-  );
+  const jwk =
+    certs.keys.find(
+      key => key.kid === header.kid
+    );
+
+  if (!jwk) {
+    throw new Error(
+      "Nie znaleziono klucza podpisu JWT."
+    );
+  }
+
+  const publicKey =
+    await crypto.subtle.importKey(
+      "jwk",
+      jwk,
+      {
+        name: "RSASSA-PKCS1-v1_5",
+        hash: "SHA-256"
+      },
+      false,
+      ["verify"]
+    );
 
   const signedData =
     new TextEncoder().encode(
@@ -176,7 +172,7 @@ async function verifyCloudflareAccess(request, env) {
   const signature =
     base64urlToBytes(parts[2]);
 
-  const validSignature =
+  const valid =
     await crypto.subtle.verify(
       "RSASSA-PKCS1-v1_5",
       publicKey,
@@ -184,67 +180,200 @@ async function verifyCloudflareAccess(request, env) {
       signedData
     );
 
-  if (!validSignature) {
+  if (!valid) {
     throw new Error(
       "Nieprawidłowy podpis Cloudflare Access."
     );
   }
 
-  const now = Math.floor(Date.now() / 1000);
+  const now =
+    Math.floor(Date.now() / 1000);
 
-  if (payload.exp && payload.exp < now) {
+  if (
+    payload.exp &&
+    payload.exp < now
+  ) {
     throw new Error(
       "Sesja Cloudflare Access wygasła."
     );
   }
 
   if (
-    payload.iss !== teamDomain
+    payload.nbf &&
+    payload.nbf > now
   ) {
     throw new Error(
-      "Nieprawidłowy issuer Cloudflare Access."
+      "Token Cloudflare nie jest jeszcze ważny."
     );
   }
 
-  const expectedAud = String(
-    env.POLICY_AUD || ""
-  );
+  const issuer =
+    String(payload.iss || "")
+      .replace(/\/+$/, "");
 
-  const aud = Array.isArray(payload.aud)
-    ? payload.aud
-    : [payload.aud];
-
-  if (!aud.includes(expectedAud)) {
+  if (issuer !== teamDomain) {
     throw new Error(
-      "Token nie jest przeznaczony dla tej aplikacji."
+      "Nieprawidłowy TEAM_DOMAIN."
+    );
+  }
+
+  const audiences =
+    Array.isArray(payload.aud)
+      ? payload.aud
+      : [payload.aud];
+
+  if (
+    !audiences.includes(expectedAud)
+  ) {
+    throw new Error(
+      "Nieprawidłowy POLICY_AUD."
     );
   }
 
   return payload;
 }
 
-function isAdmin(payload, env) {
-  const loggedInEmail = String(
-    payload.email || ""
-  )
-    .trim()
-    .toLowerCase();
+function checkAdmin(payload, env) {
+  const loggedInEmail =
+    String(payload.email || "")
+      .trim()
+      .toLowerCase();
 
-  const adminEmail = String(
-    env.ADMIN_EMAIL || ""
-  )
-    .trim()
-    .toLowerCase();
+  const adminEmail =
+    String(env.ADMIN_EMAIL || "")
+      .trim()
+      .toLowerCase();
 
-  return (
-    loggedInEmail &&
-    adminEmail &&
-    loggedInEmail === adminEmail
-  );
+  if (!adminEmail) {
+    throw new Error(
+      "Brak zmiennej ADMIN_EMAIL w Cloudflare."
+    );
+  }
+
+  return {
+    loggedInEmail,
+    isAdmin:
+      loggedInEmail === adminEmail
+  };
 }
 
-async function appendNews(env, token, values) {
-  const range = "'WWW_AKTUALNOSCI'!A:F";
+async function getGoogleAccessToken(env) {
+  if (!env.GOOGLE_SERVICE_ACCOUNT_EMAIL) {
+    throw new Error(
+      "Brak GOOGLE_SERVICE_ACCOUNT_EMAIL."
+    );
+  }
+
+  if (!env.GOOGLE_PRIVATE_KEY) {
+    throw new Error(
+      "Brak GOOGLE_PRIVATE_KEY."
+    );
+  }
+
+  const now =
+    Math.floor(Date.now() / 1000);
+
+  const header = {
+    alg: "RS256",
+    typ: "JWT"
+  };
+
+  const payload = {
+    iss: env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
+    scope:
+      "https://www.googleapis.com/auth/spreadsheets",
+    aud:
+      "https://oauth2.googleapis.com/token",
+    iat: now,
+    exp: now + 3600
+  };
+
+  const encodedHeader =
+    base64url(JSON.stringify(header));
+
+  const encodedPayload =
+    base64url(JSON.stringify(payload));
+
+  const unsignedToken =
+    `${encodedHeader}.${encodedPayload}`;
+
+  const privateKey =
+    String(env.GOOGLE_PRIVATE_KEY)
+      .replace(/\\n/g, "\n");
+
+  const cryptoKey =
+    await crypto.subtle.importKey(
+      "pkcs8",
+      pemToArrayBuffer(privateKey),
+      {
+        name: "RSASSA-PKCS1-v1_5",
+        hash: "SHA-256"
+      },
+      false,
+      ["sign"]
+    );
+
+  const signature =
+    await crypto.subtle.sign(
+      "RSASSA-PKCS1-v1_5",
+      cryptoKey,
+      new TextEncoder().encode(
+        unsignedToken
+      )
+    );
+
+  const signatureString =
+    String.fromCharCode(
+      ...new Uint8Array(signature)
+    );
+
+  const jwt =
+    `${unsignedToken}.` +
+    base64url(signatureString);
+
+  const response =
+    await fetch(
+      "https://oauth2.googleapis.com/token",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type":
+            "application/x-www-form-urlencoded"
+        },
+        body: new URLSearchParams({
+          grant_type:
+            "urn:ietf:params:oauth:grant-type:jwt-bearer",
+          assertion: jwt
+        })
+      }
+    );
+
+  const result =
+    await response.json();
+
+  if (!response.ok) {
+    throw new Error(
+      "Google authentication failed: " +
+      JSON.stringify(result)
+    );
+  }
+
+  return result.access_token;
+}
+
+async function appendNews(
+  env,
+  token,
+  values
+) {
+  if (!env.GOOGLE_SHEET_ID) {
+    throw new Error(
+      "Brak GOOGLE_SHEET_ID."
+    );
+  }
+
+  const range =
+    "'WWW_AKTUALNOSCI'!A:F";
 
   const url =
     `https://sheets.googleapis.com/v4/spreadsheets/` +
@@ -253,38 +382,95 @@ async function appendNews(env, token, values) {
     `?valueInputOption=USER_ENTERED` +
     `&insertDataOption=INSERT_ROWS`;
 
-  const response = await fetch(url, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      values: [values]
-    })
-  });
+  const response =
+    await fetch(url, {
+      method: "POST",
+      headers: {
+        Authorization:
+          `Bearer ${token}`,
+        "Content-Type":
+          "application/json"
+      },
+      body: JSON.stringify({
+        values: [values]
+      })
+    });
 
-  const result = await response.json();
+  const result =
+    await response.json();
 
   if (!response.ok) {
     throw new Error(
       "Google Sheets append failed: " +
-        JSON.stringify(result)
+      JSON.stringify(result)
     );
   }
 
   return result;
 }
 
+function getPolishDate() {
+  const parts =
+    new Intl.DateTimeFormat(
+      "pl-PL",
+      {
+        timeZone: "Europe/Warsaw",
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric"
+      }
+    ).formatToParts(new Date());
+
+  const get =
+    type =>
+      parts.find(
+        part => part.type === type
+      )?.value || "";
+
+  return (
+    `${get("day")}.` +
+    `${get("month")}.` +
+    `${get("year")}`
+  );
+}
+
+export async function onRequestGet(context) {
+  return Response.json({
+    ok: true,
+    endpoint: "PBK Typerka news API",
+    variables: {
+      TEAM_DOMAIN:
+        !!context.env.TEAM_DOMAIN,
+      POLICY_AUD:
+        !!context.env.POLICY_AUD,
+      ADMIN_EMAIL:
+        !!context.env.ADMIN_EMAIL,
+      GOOGLE_SHEET_ID:
+        !!context.env.GOOGLE_SHEET_ID,
+      GOOGLE_SERVICE_ACCOUNT_EMAIL:
+        !!context.env
+          .GOOGLE_SERVICE_ACCOUNT_EMAIL,
+      GOOGLE_PRIVATE_KEY:
+        !!context.env.GOOGLE_PRIVATE_KEY
+    }
+  });
+}
+
 export async function onRequestPost(context) {
   try {
-    const accessUser =
+    const accessPayload =
       await verifyCloudflareAccess(
         context.request,
         context.env
       );
 
-    if (!isAdmin(accessUser, context.env)) {
+    const admin =
+      checkAdmin(
+        accessPayload,
+        context.env
+      );
+
+    if (!admin.isAdmin) {
       return Response.json(
         {
           ok: false,
@@ -297,20 +483,34 @@ export async function onRequestPost(context) {
       );
     }
 
-    const body =
-      await context.request.json();
+    let body;
 
-    const title = String(
-      body.title || ""
-    ).trim();
+    try {
+      body =
+        await context.request.json();
+    } catch {
+      return Response.json(
+        {
+          ok: false,
+          error:
+            "Nieprawidłowe dane JSON."
+        },
+        {
+          status: 400
+        }
+      );
+    }
 
-    const category = String(
-      body.category || "Aktualność"
-    ).trim();
+    const title =
+      String(body.title || "").trim();
 
-    const text = String(
-      body.text || ""
-    ).trim();
+    const category =
+      String(
+        body.category || "Aktualność"
+      ).trim();
+
+    const text =
+      String(body.text || "").trim();
 
     const published =
       body.published === false
@@ -359,14 +559,8 @@ export async function onRequestPost(context) {
     const id =
       crypto.randomUUID();
 
-    const now = new Date();
-
     const date =
-      String(now.getDate()).padStart(2, "0") +
-      "." +
-      String(now.getMonth() + 1).padStart(2, "0") +
-      "." +
-      now.getFullYear();
+      getPolishDate();
 
     const googleToken =
       await getGoogleAccessToken(
@@ -396,23 +590,14 @@ export async function onRequestPost(context) {
     return Response.json(
       {
         ok: false,
-        error: error.message
+        error:
+          error instanceof Error
+            ? error.message
+            : String(error)
       },
       {
         status: 403
       }
     );
   }
-}
-export async function onRequestGet(context) {
-  return Response.json({
-    TEAM_DOMAIN: !!context.env.TEAM_DOMAIN,
-    POLICY_AUD: !!context.env.POLICY_AUD,
-    ADMIN_EMAIL: !!context.env.ADMIN_EMAIL,
-    GOOGLE_SHEET_ID: !!context.env.GOOGLE_SHEET_ID,
-    GOOGLE_SERVICE_ACCOUNT_EMAIL:
-      !!context.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
-    GOOGLE_PRIVATE_KEY:
-      !!context.env.GOOGLE_PRIVATE_KEY
-  });
 }
