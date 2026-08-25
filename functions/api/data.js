@@ -88,7 +88,34 @@ async function getGoogleAccessToken(env) {
   return result.access_token;
 }
 
-async function getSheetRange(env, token, range) {
+async function getSheetRange(
+  env,
+  token,
+  range,
+  valueRenderOption = "UNFORMATTED_VALUE"
+) {
+  const url =
+    `https://sheets.googleapis.com/v4/spreadsheets/` +
+    `${env.GOOGLE_SHEET_ID}/values/${encodeURIComponent(range)}` +
+    `?valueRenderOption=${valueRenderOption}`;
+
+  const response = await fetch(url, {
+    headers: {
+      Authorization: `Bearer ${token}`
+    }
+  });
+
+  const result = await response.json();
+
+  if (!response.ok) {
+    throw new Error(
+      `Google Sheets error for ${range}: ` +
+      JSON.stringify(result)
+    );
+  }
+
+  return result.values || [];
+}
   const url =
     `https://sheets.googleapis.com/v4/spreadsheets/` +
     `${env.GOOGLE_SHEET_ID}/values/${encodeURIComponent(range)}` +
