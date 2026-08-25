@@ -10,3 +10,4 @@ export async function onRequestGet(context) {
       !!context.env.GOOGLE_PRIVATE_KEY
   });
 }
+
