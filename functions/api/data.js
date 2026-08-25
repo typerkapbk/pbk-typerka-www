@@ -31,7 +31,7 @@ async function getGoogleAccessToken(env) {
 
   const payload = {
     iss: env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
-    scope: "https://www.googleapis.com/auth/spreadsheets.readonly",
+    scope: "https://www.googleapis.com/auth/spreadsheets",
     aud: "https://oauth2.googleapis.com/token",
     iat: now,
     exp: now + 3600
