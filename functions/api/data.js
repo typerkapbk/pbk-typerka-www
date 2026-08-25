@@ -66,22 +66,27 @@ async function getGoogleAccessToken(env) {
 
   const jwt = `${unsignedToken}.${base64url(signatureString)}`;
 
-  const response = await fetch("https://oauth2.googleapis.com/token", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/x-www-form-urlencoded"
-    },
-    body: new URLSearchParams({
-      grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
-      assertion: jwt
-    })
-  });
+  const response = await fetch(
+    "https://oauth2.googleapis.com/token",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded"
+      },
+      body: new URLSearchParams({
+        grant_type:
+          "urn:ietf:params:oauth:grant-type:jwt-bearer",
+        assertion: jwt
+      })
+    }
+  );
 
   const result = await response.json();
 
   if (!response.ok) {
     throw new Error(
-      "Google authentication failed: " + JSON.stringify(result)
+      "Google authentication failed: " +
+        JSON.stringify(result)
     );
   }
 
@@ -110,29 +115,7 @@ async function getSheetRange(
   if (!response.ok) {
     throw new Error(
       `Google Sheets error for ${range}: ` +
-      JSON.stringify(result)
-    );
-  }
-
-  return result.values || [];
-}
-  const url =
-    `https://sheets.googleapis.com/v4/spreadsheets/` +
-    `${env.GOOGLE_SHEET_ID}/values/${encodeURIComponent(range)}` +
-    `?valueRenderOption=UNFORMATTED_VALUE`;
-
-  const response = await fetch(url, {
-    headers: {
-      Authorization: `Bearer ${token}`
-    }
-  });
-
-  const result = await response.json();
-
-  if (!response.ok) {
-    throw new Error(
-      `Google Sheets error for ${range}: ` +
-      JSON.stringify(result)
+        JSON.stringify(result)
     );
   }
 
@@ -144,34 +127,54 @@ export async function onRequestGet(context) {
     const token = await getGoogleAccessToken(context.env);
 
     const [
-  generalka,
-  tabelaKolejki,
-  ms,
-  tt,
-  aktualnosci
-] = await Promise.all([
-  getSheetRange(context.env, token, "GENERALKA!A1:I20"),
-  getSheetRange(context.env, token, "'TABELA KOLEJKI'!A1:H20"),
-  getSheetRange(context.env, token, "'M&S'!A1:AT30"),
-  getSheetRange(context.env, token, "TT!A1:BG80"),
-  getSheetRange(
-  context.env,
-  token,
-  "'WWW_AKTUALNOSCI'!A1:F200",
-  "FORMATTED_VALUE"
-)
-]);
+      generalka,
+      tabelaKolejki,
+      ms,
+      tt,
+      aktualnosci
+    ] = await Promise.all([
+      getSheetRange(
+        context.env,
+        token,
+        "GENERALKA!A1:I20"
+      ),
+
+      getSheetRange(
+        context.env,
+        token,
+        "'TABELA KOLEJKI'!A1:H20"
+      ),
+
+      getSheetRange(
+        context.env,
+        token,
+        "'M&S'!A1:AT30"
+      ),
+
+      getSheetRange(
+        context.env,
+        token,
+        "TT!A1:BG80"
+      ),
+
+      getSheetRange(
+        context.env,
+        token,
+        "'WWW_AKTUALNOSCI'!A1:F200",
+        "FORMATTED_VALUE"
+      )
+    ]);
 
     return Response.json({
       ok: true,
       timestamp: new Date().toISOString(),
       sheets: {
-  GENERALKA: generalka,
-  TABELA_KOLEJKI: tabelaKolejki,
-  MS: ms,
-  TT: tt,
-  AKTUALNOSCI: aktualnosci
-}
+        GENERALKA: generalka,
+        TABELA_KOLEJKI: tabelaKolejki,
+        MS: ms,
+        TT: tt,
+        AKTUALNOSCI: aktualnosci
+      }
     });
   } catch (error) {
     return Response.json(
