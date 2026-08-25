@@ -5,6 +5,28 @@ function base64url(input) {
     .replace(/=+$/g, "");
 }
 
+function base64urlToBytes(input) {
+  input = input.replace(/-/g, "+").replace(/_/g, "/");
+
+  while (input.length % 4) {
+    input += "=";
+  }
+
+  const binary = atob(input);
+  const bytes = new Uint8Array(binary.length);
+
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+
+  return bytes;
+}
+
+function decodeJwtPart(part) {
+  const bytes = base64urlToBytes(part);
+  return JSON.parse(new TextDecoder().decode(bytes));
+}
+
 function pemToArrayBuffer(pem) {
   const b64 = pem
     .replace(/-----BEGIN PRIVATE KEY-----/g, "")
@@ -93,19 +115,124 @@ async function getGoogleAccessToken(env) {
   return result.access_token;
 }
 
-function getAuthenticatedEmail(request) {
-  return (
-    request.headers.get(
-      "Cf-Access-Authenticated-User-Email"
-    ) || ""
+async function verifyCloudflareAccess(request, env) {
+  const token =
+    request.headers.get("Cf-Access-Jwt-Assertion");
+
+  if (!token) {
+    throw new Error("Brak tokenu Cloudflare Access.");
+  }
+
+  const parts = token.split(".");
+
+  if (parts.length !== 3) {
+    throw new Error("Nieprawidłowy token Cloudflare Access.");
+  }
+
+  const header = decodeJwtPart(parts[0]);
+  const payload = decodeJwtPart(parts[1]);
+
+  const teamDomain = String(env.TEAM_DOMAIN || "")
+    .replace(/\/+$/, "");
+
+  const certsResponse = await fetch(
+    `${teamDomain}/cdn-cgi/access/certs`
+  );
+
+  if (!certsResponse.ok) {
+    throw new Error(
+      "Nie udało się pobrać kluczy Cloudflare Access."
+    );
+  }
+
+  const certs = await certsResponse.json();
+
+  const jwk = certs.keys.find(
+    key => key.kid === header.kid
+  );
+
+  if (!jwk) {
+    throw new Error(
+      "Nie znaleziono klucza podpisu Cloudflare."
+    );
+  }
+
+  const publicKey = await crypto.subtle.importKey(
+    "jwk",
+    jwk,
+    {
+      name: "RSASSA-PKCS1-v1_5",
+      hash: "SHA-256"
+    },
+    false,
+    ["verify"]
+  );
+
+  const signedData =
+    new TextEncoder().encode(
+      `${parts[0]}.${parts[1]}`
+    );
+
+  const signature =
+    base64urlToBytes(parts[2]);
+
+  const validSignature =
+    await crypto.subtle.verify(
+      "RSASSA-PKCS1-v1_5",
+      publicKey,
+      signature,
+      signedData
+    );
+
+  if (!validSignature) {
+    throw new Error(
+      "Nieprawidłowy podpis Cloudflare Access."
+    );
+  }
+
+  const now = Math.floor(Date.now() / 1000);
+
+  if (payload.exp && payload.exp < now) {
+    throw new Error(
+      "Sesja Cloudflare Access wygasła."
+    );
+  }
+
+  if (
+    payload.iss !== teamDomain
+  ) {
+    throw new Error(
+      "Nieprawidłowy issuer Cloudflare Access."
+    );
+  }
+
+  const expectedAud = String(
+    env.POLICY_AUD || ""
+  );
+
+  const aud = Array.isArray(payload.aud)
+    ? payload.aud
+    : [payload.aud];
+
+  if (!aud.includes(expectedAud)) {
+    throw new Error(
+      "Token nie jest przeznaczony dla tej aplikacji."
+    );
+  }
+
+  return payload;
+}
+
+function isAdmin(payload, env) {
+  const loggedInEmail = String(
+    payload.email || ""
   )
     .trim()
     .toLowerCase();
-}
 
-function isAdmin(request, env) {
-  const loggedInEmail = getAuthenticatedEmail(request);
-  const adminEmail = String(env.ADMIN_EMAIL || "")
+  const adminEmail = String(
+    env.ADMIN_EMAIL || ""
+  )
     .trim()
     .toLowerCase();
 
@@ -151,7 +278,13 @@ async function appendNews(env, token, values) {
 
 export async function onRequestPost(context) {
   try {
-    if (!isAdmin(context.request, context.env)) {
+    const accessUser =
+      await verifyCloudflareAccess(
+        context.request,
+        context.env
+      );
+
+    if (!isAdmin(accessUser, context.env)) {
       return Response.json(
         {
           ok: false,
@@ -164,15 +297,25 @@ export async function onRequestPost(context) {
       );
     }
 
-    const body = await context.request.json();
+    const body =
+      await context.request.json();
 
-    const title = String(body.title || "").trim();
+    const title = String(
+      body.title || ""
+    ).trim();
+
     const category = String(
       body.category || "Aktualność"
     ).trim();
-    const text = String(body.text || "").trim();
+
+    const text = String(
+      body.text || ""
+    ).trim();
+
     const published =
-      body.published === false ? "NIE" : "TAK";
+      body.published === false
+        ? "NIE"
+        : "TAK";
 
     if (!title || !text) {
       return Response.json(
@@ -225,12 +368,14 @@ export async function onRequestPost(context) {
       "." +
       now.getFullYear();
 
-    const token =
-      await getGoogleAccessToken(context.env);
+    const googleToken =
+      await getGoogleAccessToken(
+        context.env
+      );
 
     await appendNews(
       context.env,
-      token,
+      googleToken,
       [
         id,
         date,
@@ -246,6 +391,7 @@ export async function onRequestPost(context) {
       id,
       date
     });
+
   } catch (error) {
     return Response.json(
       {
@@ -253,7 +399,7 @@ export async function onRequestPost(context) {
         error: error.message
       },
       {
-        status: 500
+        status: 403
       }
     );
   }
