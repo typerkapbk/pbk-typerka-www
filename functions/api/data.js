@@ -68,22 +68,35 @@ function normalizeName(value) {
     .toLowerCase();
 }
 
+function normalizeSegment(value) {
+  return String(value ?? "")
+    .trim();
+}
+
 async function verifyCloudflareAccess(
   request,
   env
 ) {
   const teamDomain =
-    normalizeTeamDomain(env.TEAM_DOMAIN);
+    normalizeTeamDomain(
+      env.TEAM_DOMAIN
+    );
 
   const expectedAud =
-    String(env.POLICY_AUD || "").trim();
+    String(
+      env.POLICY_AUD || ""
+    ).trim();
 
   if (!teamDomain) {
-    throw new Error("Brak TEAM_DOMAIN.");
+    throw new Error(
+      "Brak TEAM_DOMAIN."
+    );
   }
 
   if (!expectedAud) {
-    throw new Error("Brak POLICY_AUD.");
+    throw new Error(
+      "Brak POLICY_AUD."
+    );
   }
 
   const token =
@@ -97,7 +110,8 @@ async function verifyCloudflareAccess(
     );
   }
 
-  const parts = token.split(".");
+  const parts =
+    token.split(".");
 
   if (parts.length !== 3) {
     throw new Error(
@@ -106,10 +120,14 @@ async function verifyCloudflareAccess(
   }
 
   const header =
-    decodeJwtPart(parts[0]);
+    decodeJwtPart(
+      parts[0]
+    );
 
   const payload =
-    decodeJwtPart(parts[1]);
+    decodeJwtPart(
+      parts[1]
+    );
 
   const certsResponse =
     await fetch(
@@ -129,7 +147,8 @@ async function verifyCloudflareAccess(
     Array.isArray(certs.keys)
       ? certs.keys.find(
           key =>
-            key.kid === header.kid
+            key.kid ===
+            header.kid
         )
       : null;
 
@@ -144,7 +163,8 @@ async function verifyCloudflareAccess(
       "jwk",
       jwk,
       {
-        name: "RSASSA-PKCS1-v1_5",
+        name:
+          "RSASSA-PKCS1-v1_5",
         hash: "SHA-256"
       },
       false,
@@ -155,7 +175,9 @@ async function verifyCloudflareAccess(
     await crypto.subtle.verify(
       "RSASSA-PKCS1-v1_5",
       publicKey,
-      base64urlToBytes(parts[2]),
+      base64urlToBytes(
+        parts[2]
+      ),
       new TextEncoder().encode(
         `${parts[0]}.${parts[1]}`
       )
@@ -168,7 +190,9 @@ async function verifyCloudflareAccess(
   }
 
   const now =
-    Math.floor(Date.now() / 1000);
+    Math.floor(
+      Date.now() / 1000
+    );
 
   if (
     payload.exp &&
@@ -180,22 +204,30 @@ async function verifyCloudflareAccess(
   }
 
   const issuer =
-    String(payload.iss || "")
-      .replace(/\/+$/, "");
+    String(
+      payload.iss || ""
+    ).replace(/\/+$/, "");
 
-  if (issuer !== teamDomain) {
+  if (
+    issuer !==
+    teamDomain
+  ) {
     throw new Error(
       "Nieprawidłowy TEAM_DOMAIN."
     );
   }
 
   const audiences =
-    Array.isArray(payload.aud)
+    Array.isArray(
+      payload.aud
+    )
       ? payload.aud
       : [payload.aud];
 
   if (
-    !audiences.includes(expectedAud)
+    !audiences.includes(
+      expectedAud
+    )
   ) {
     throw new Error(
       "Nieprawidłowy POLICY_AUD."
@@ -205,9 +237,13 @@ async function verifyCloudflareAccess(
   return payload;
 }
 
-async function getGoogleAccessToken(env) {
+async function getGoogleAccessToken(
+  env
+) {
   const now =
-    Math.floor(Date.now() / 1000);
+    Math.floor(
+      Date.now() / 1000
+    );
 
   const header = {
     alg: "RS256",
@@ -216,23 +252,31 @@ async function getGoogleAccessToken(env) {
 
   const payload = {
     iss:
-      env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
+      env
+        .GOOGLE_SERVICE_ACCOUNT_EMAIL,
+
     scope:
       "https://www.googleapis.com/auth/spreadsheets",
+
     aud:
       "https://oauth2.googleapis.com/token",
+
     iat: now,
     exp: now + 3600
   };
 
   const encodedHeader =
     base64url(
-      JSON.stringify(header)
+      JSON.stringify(
+        header
+      )
     );
 
   const encodedPayload =
     base64url(
-      JSON.stringify(payload)
+      JSON.stringify(
+        payload
+      )
     );
 
   const unsignedToken =
@@ -240,16 +284,22 @@ async function getGoogleAccessToken(env) {
 
   const privateKey =
     env.GOOGLE_PRIVATE_KEY
-      .replace(/\\n/g, "\n");
+      .replace(
+        /\\n/g,
+        "\n"
+      );
 
   const cryptoKey =
     await crypto.subtle.importKey(
       "pkcs8",
-      pemToArrayBuffer(privateKey),
+      pemToArrayBuffer(
+        privateKey
+      ),
       {
         name:
           "RSASSA-PKCS1-v1_5",
-        hash: "SHA-256"
+        hash:
+          "SHA-256"
       },
       false,
       ["sign"]
@@ -266,27 +316,36 @@ async function getGoogleAccessToken(env) {
 
   const signatureString =
     String.fromCharCode(
-      ...new Uint8Array(signature)
+      ...new Uint8Array(
+        signature
+      )
     );
 
   const jwt =
     `${unsignedToken}.` +
-    base64url(signatureString);
+    base64url(
+      signatureString
+    );
 
   const response =
     await fetch(
       "https://oauth2.googleapis.com/token",
       {
         method: "POST",
+
         headers: {
           "Content-Type":
             "application/x-www-form-urlencoded"
         },
-        body: new URLSearchParams({
-          grant_type:
-            "urn:ietf:params:oauth:grant-type:jwt-bearer",
-          assertion: jwt
-        })
+
+        body:
+          new URLSearchParams({
+            grant_type:
+              "urn:ietf:params:oauth:grant-type:jwt-bearer",
+
+            assertion:
+              jwt
+          })
       }
     );
 
@@ -296,7 +355,9 @@ async function getGoogleAccessToken(env) {
   if (!response.ok) {
     throw new Error(
       "Google authentication failed: " +
-      JSON.stringify(result)
+      JSON.stringify(
+        result
+      )
     );
   }
 
@@ -317,12 +378,15 @@ async function getSheetRange(
     `?valueRenderOption=${valueRenderOption}`;
 
   const response =
-    await fetch(url, {
-      headers: {
-        Authorization:
-          `Bearer ${token}`
+    await fetch(
+      url,
+      {
+        headers: {
+          Authorization:
+            `Bearer ${token}`
+        }
       }
-    });
+    );
 
   const result =
     await response.json();
@@ -330,16 +394,33 @@ async function getSheetRange(
   if (!response.ok) {
     throw new Error(
       `Google Sheets error for ${range}: ` +
-      JSON.stringify(result)
+      JSON.stringify(
+        result
+      )
     );
   }
 
-  return result.values || [];
+  return (
+    result.values || []
+  );
 }
 
-function parsePolishDateTime(value) {
+/*
+ * Zamiana polskiej daty:
+ *
+ * 08.09.2026 20:45
+ *
+ * na wartość liczbową:
+ *
+ * 202609082045
+ */
+function parsePolishDateTime(
+  value
+) {
   const text =
-    String(value || "").trim();
+    String(
+      value || ""
+    ).trim();
 
   if (!text) {
     return null;
@@ -364,10 +445,14 @@ function parsePolishDateTime(value) {
     Number(match[3]);
 
   const hour =
-    Number(match[4] || 0);
+    Number(
+      match[4] || 0
+    );
 
   const minute =
-    Number(match[5] || 0);
+    Number(
+      match[5] || 0
+    );
 
   return (
     year * 100000000 +
@@ -383,43 +468,70 @@ function getWarsawNowNumber() {
     new Intl.DateTimeFormat(
       "pl-PL",
       {
-        timeZone: "Europe/Warsaw",
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-        hour: "2-digit",
-        minute: "2-digit",
-        hourCycle: "h23"
+        timeZone:
+          "Europe/Warsaw",
+
+        year:
+          "numeric",
+
+        month:
+          "2-digit",
+
+        day:
+          "2-digit",
+
+        hour:
+          "2-digit",
+
+        minute:
+          "2-digit",
+
+        hourCycle:
+          "h23"
       }
-    ).formatToParts(
-      new Date()
-    );
+    )
+      .formatToParts(
+        new Date()
+      );
 
   const get =
     type =>
       Number(
         parts.find(
-          p => p.type === type
+          p =>
+            p.type ===
+            type
         )?.value || 0
       );
 
   return (
-    get("year") * 100000000 +
-    get("month") * 1000000 +
-    get("day") * 10000 +
-    get("hour") * 100 +
+    get("year") *
+      100000000 +
+
+    get("month") *
+      1000000 +
+
+    get("day") *
+      10000 +
+
+    get("hour") *
+      100 +
+
     get("minute")
   );
 }
 
-function normalizeSegment(value) {
-  return String(
-    value ?? ""
-  ).trim();
-}
-
-function buildStartMap(rows) {
-  const map = new Map();
+/*
+ * WWW_KOLEJKI
+ *
+ * A = KOLEJKA
+ * B = START
+ */
+function buildStartMap(
+  rows
+) {
+  const map =
+    new Map();
 
   for (
     let i = 1;
@@ -427,12 +539,16 @@ function buildStartMap(rows) {
     i++
   ) {
     const row =
-      Array.isArray(rows[i])
+      Array.isArray(
+        rows[i]
+      )
         ? rows[i]
         : [];
 
     const segment =
-      normalizeSegment(row[0]);
+      normalizeSegment(
+        row[0]
+      );
 
     const start =
       parsePolishDateTime(
@@ -453,12 +569,21 @@ function buildStartMap(rows) {
   return map;
 }
 
+/*
+ * WWW_UZYTKOWNICY
+ *
+ * A = EMAIL
+ * B = NAZWA
+ * C = AKTYWNY
+ */
 function findLoggedInPlayer(
   rows,
   email
 ) {
   const wanted =
-    String(email || "")
+    String(
+      email || ""
+    )
       .trim()
       .toLowerCase();
 
@@ -472,35 +597,46 @@ function findLoggedInPlayer(
     i++
   ) {
     const row =
-      Array.isArray(rows[i])
+      Array.isArray(
+        rows[i]
+      )
         ? rows[i]
         : [];
 
     const rowEmail =
-      String(row[0] || "")
+      String(
+        row[0] || ""
+      )
         .trim()
         .toLowerCase();
 
     const name =
-      String(row[1] || "")
-        .trim();
+      String(
+        row[1] || ""
+      ).trim();
 
     const active =
       String(
-        row[2] ?? "TAK"
+        row[2] ??
+          "TAK"
       )
         .trim()
         .toUpperCase();
 
     if (
-      rowEmail === wanted &&
+      rowEmail ===
+        wanted &&
+
       name &&
+
       ![
         "NIE",
         "NO",
         "FALSE",
         "0"
-      ].includes(active)
+      ].includes(
+        active
+      )
     ) {
       return name;
     }
@@ -509,16 +645,115 @@ function findLoggedInPlayer(
   return "";
 }
 
+function scoreExists(value) {
+  if (
+    value === null ||
+    value === undefined ||
+    value === ""
+  ) {
+    return false;
+  }
+
+  const n =
+    Number(value);
+
+  return Number.isFinite(
+    n
+  );
+}
+
+/*
+ * Sprawdzamy, które segmenty
+ * na pewno już się rozpoczęły
+ * na podstawie wpisanych wyników.
+ *
+ * TT:
+ *
+ * C = kolejka / segment
+ * G = gole gospodarzy
+ * I = gole gości
+ *
+ * Jeżeli choć jeden mecz
+ * danego segmentu ma wynik,
+ * segment uznajemy za rozpoczęty.
+ */
+function buildStartedSegmentsFromTT(
+  ttRows
+) {
+  const started =
+    new Set();
+
+  for (
+    let r = 2;
+    r < ttRows.length;
+    r++
+  ) {
+    const row =
+      Array.isArray(
+        ttRows[r]
+      )
+        ? ttRows[r]
+        : [];
+
+    const segment =
+      normalizeSegment(
+        row[2]
+      );
+
+    if (!segment) {
+      continue;
+    }
+
+    const homeScore =
+      row[6];
+
+    const awayScore =
+      row[8];
+
+    if (
+      scoreExists(
+        homeScore
+      ) &&
+      scoreExists(
+        awayScore
+      )
+    ) {
+      started.add(
+        segment
+      );
+    }
+  }
+
+  return started;
+}
+
+/*
+ * Zasłanianie typów.
+ *
+ * Zawodnicy zaczynają się
+ * od kolumny O, indeks 14.
+ *
+ * Każdy zawodnik zajmuje
+ * blok 4 kolumn.
+ */
 function protectTT(
   ttRows,
   startMap,
   currentPlayer,
   isAdmin
 ) {
-  if (!Array.isArray(ttRows)) {
+  if (
+    !Array.isArray(
+      ttRows
+    )
+  ) {
     return [];
   }
 
+  /*
+   * Administrator ma dostęp
+   * do wszystkiego.
+   */
   if (isAdmin) {
     return ttRows;
   }
@@ -527,16 +762,19 @@ function protectTT(
     getWarsawNowNumber();
 
   const protectedRows =
-    ttRows.map(row =>
-      Array.isArray(row)
-        ? [...row]
-        : []
+    ttRows.map(
+      row =>
+        Array.isArray(row)
+          ? [...row]
+          : []
     );
 
   const header =
-    protectedRows[0] || [];
+    protectedRows[0] ||
+    [];
 
-  const playerColumns = [];
+  const playerColumns =
+    [];
 
   for (
     let c = 14;
@@ -545,7 +783,8 @@ function protectTT(
   ) {
     const name =
       String(
-        header[c] || ""
+        header[c] ||
+        ""
       ).trim();
 
     if (name) {
@@ -557,11 +796,27 @@ function protectTT(
   }
 
   const currentNormalized =
-    normalizeName(currentPlayer);
+    normalizeName(
+      currentPlayer
+    );
+
+  /*
+   * Dla starych kolejek,
+   * których nie wpisaliśmy jeszcze
+   * do WWW_KOLEJKI, możemy
+   * rozpoznać start po tym,
+   * że pojawił się już wynik
+   * choć jednego meczu.
+   */
+  const startedFromResults =
+    buildStartedSegmentsFromTT(
+      ttRows
+    );
 
   for (
     let r = 2;
-    r < protectedRows.length;
+    r <
+      protectedRows.length;
     r++
   ) {
     const row =
@@ -576,25 +831,64 @@ function protectTT(
       continue;
     }
 
-    const start =
-      startMap.get(segment);
+    const scheduledStart =
+      startMap.get(
+        segment
+      );
 
-    const unlocked =
-      start !== undefined &&
-      now >= start;
+    let unlocked =
+      false;
 
+    /*
+     * Jeśli segment jest wpisany
+     * w WWW_KOLEJKI, decyduje
+     * ustawiona tam data.
+     */
+    if (
+      scheduledStart !==
+      undefined
+    ) {
+      unlocked =
+        now >=
+        scheduledStart;
+    }
+
+    /*
+     * Jeśli nie ma go jeszcze
+     * w WWW_KOLEJKI, ale segment
+     * ma już wpisany wynik,
+     * traktujemy go jako rozpoczęty.
+     */
+    else if (
+      startedFromResults.has(
+        segment
+      )
+    ) {
+      unlocked = true;
+    }
+
+    /*
+     * Brak daty oraz brak
+     * rozpoczętego meczu =
+     * pozostaje zamknięte.
+     */
     if (unlocked) {
       continue;
     }
 
     for (
-      const player of playerColumns
+      const player
+      of playerColumns
     ) {
       const playerNormalized =
         normalizeName(
           player.name
         );
 
+      /*
+       * Własnych typów
+       * nie zasłaniamy.
+       */
       if (
         currentNormalized &&
         playerNormalized ===
@@ -635,7 +929,8 @@ export async function onRequestGet(
 
     const adminEmail =
       String(
-        context.env.ADMIN_EMAIL ||
+        context.env
+          .ADMIN_EMAIL ||
         ""
       )
         .trim()
@@ -644,7 +939,8 @@ export async function onRequestGet(
     const isAdmin =
       !!email &&
       !!adminEmail &&
-      email === adminEmail;
+      email ===
+        adminEmail;
 
     const token =
       await getGoogleAccessToken(
@@ -736,7 +1032,8 @@ export async function onRequestGet(
 
         privacy: {
           player:
-            currentPlayer || null,
+            currentPlayer ||
+            null,
 
           isAdmin,
 
