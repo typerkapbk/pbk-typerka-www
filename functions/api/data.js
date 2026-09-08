@@ -62,10 +62,12 @@ function normalizeTeamDomain(value) {
   return domain.replace(/\/+$/, "");
 }
 
-/*
- * Sprawdzenie użytkownika zalogowanego przez
- * Cloudflare Access.
- */
+function normalizeName(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase();
+}
+
 async function verifyCloudflareAccess(
   request,
   env
@@ -77,15 +79,11 @@ async function verifyCloudflareAccess(
     String(env.POLICY_AUD || "").trim();
 
   if (!teamDomain) {
-    throw new Error(
-      "Brak TEAM_DOMAIN."
-    );
+    throw new Error("Brak TEAM_DOMAIN.");
   }
 
   if (!expectedAud) {
-    throw new Error(
-      "Brak POLICY_AUD."
-    );
+    throw new Error("Brak POLICY_AUD.");
   }
 
   const token =
@@ -219,13 +217,10 @@ async function getGoogleAccessToken(env) {
   const payload = {
     iss:
       env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
-
     scope:
       "https://www.googleapis.com/auth/spreadsheets",
-
     aud:
       "https://oauth2.googleapis.com/token",
-
     iat: now,
     exp: now + 3600
   };
@@ -283,16 +278,13 @@ async function getGoogleAccessToken(env) {
       "https://oauth2.googleapis.com/token",
       {
         method: "POST",
-
         headers: {
           "Content-Type":
             "application/x-www-form-urlencoded"
         },
-
         body: new URLSearchParams({
           grant_type:
             "urn:ietf:params:oauth:grant-type:jwt-bearer",
-
           assertion: jwt
         })
       }
@@ -345,19 +337,6 @@ async function getSheetRange(
   return result.values || [];
 }
 
-/*
- * Zamienia np.:
- *
- * 08.09.2026 20:45
- *
- * na liczbę:
- *
- * 202609082045
- *
- * Dzięki temu możemy porównywać daty
- * w polskiej strefie czasowej bez problemów
- * z UTC.
- */
 function parsePolishDateTime(value) {
   const text =
     String(value || "").trim();
@@ -439,12 +418,6 @@ function normalizeSegment(value) {
   ).trim();
 }
 
-/*
- * WWW_KOLEJKI:
- *
- * A = KOLEJKA
- * B = START
- */
 function buildStartMap(rows) {
   const map = new Map();
 
@@ -480,13 +453,6 @@ function buildStartMap(rows) {
   return map;
 }
 
-/*
- * WWW_UZYTKOWNICY:
- *
- * A = EMAIL
- * B = NAZWA
- * C = AKTYWNY
- */
 function findLoggedInPlayer(
   rows,
   email
@@ -543,18 +509,6 @@ function findLoggedInPlayer(
   return "";
 }
 
-/*
- * Najważniejsza funkcja prywatności.
- *
- * W TT zawodnicy zaczynają się od
- * kolumny O (indeks 14).
- *
- * Każdy zawodnik zajmuje 4 kolumny.
- *
- * Jeśli dana część kolejki jeszcze
- * się nie rozpoczęła, czyścimy dane
- * pozostałych zawodników.
- */
 function protectTT(
   ttRows,
   startMap,
@@ -565,9 +519,6 @@ function protectTT(
     return [];
   }
 
-  /*
-   * Administrator widzi wszystko.
-   */
   if (isAdmin) {
     return ttRows;
   }
@@ -575,10 +526,6 @@ function protectTT(
   const now =
     getWarsawNowNumber();
 
-  /*
-   * Robimy kopię, aby nie modyfikować
-   * danych źródłowych.
-   */
   const protectedRows =
     ttRows.map(row =>
       Array.isArray(row)
@@ -589,10 +536,6 @@ function protectTT(
   const header =
     protectedRows[0] || [];
 
-  /*
-   * Ustalamy, która grupa kolumn
-   * należy do którego zawodnika.
-   */
   const playerColumns = [];
 
   for (
@@ -613,10 +556,9 @@ function protectTT(
     }
   }
 
-  /*
-   * Wiersze z meczami zaczynają się
-   * od trzeciego wiersza arkusza.
-   */
+  const currentNormalized =
+    normalizeName(currentPlayer);
+
   for (
     let r = 2;
     r < protectedRows.length;
@@ -625,14 +567,6 @@ function protectTT(
     const row =
       protectedRows[r];
 
-    /*
-     * Kolumna C = numer/część kolejki.
-     *
-     * Przykłady:
-     * 3
-     * 3.2
-     * 5.3
-     */
     const segment =
       normalizeSegment(
         row[2]
@@ -645,13 +579,6 @@ function protectTT(
     const start =
       startMap.get(segment);
 
-    /*
-     * Jeżeli nie ma wpisu w WWW_KOLEJKI,
-     * traktujemy część jako zamkniętą.
-     *
-     * To chroni przed przypadkowym
-     * ujawnieniem typów.
-     */
     const unlocked =
       start !== undefined &&
       now >= start;
@@ -660,21 +587,18 @@ function protectTT(
       continue;
     }
 
-    /*
-     * Przed startem pozostawiamy tylko
-     * typ zalogowanego zawodnika.
-     *
-     * Wszystkim pozostałym czyścimy
-     * cztery kolumny należące do ich
-     * zestawu.
-     */
     for (
       const player of playerColumns
     ) {
+      const playerNormalized =
+        normalizeName(
+          player.name
+        );
+
       if (
-        currentPlayer &&
-        player.name ===
-          currentPlayer
+        currentNormalized &&
+        playerNormalized ===
+          currentNormalized
       ) {
         continue;
       }
@@ -696,10 +620,6 @@ export async function onRequestGet(
   context
 ) {
   try {
-    /*
-     * Najpierw ustalamy, kto jest
-     * zalogowany.
-     */
     const access =
       await verifyCloudflareAccess(
         context.request,
@@ -726,9 +646,6 @@ export async function onRequestGet(
       !!adminEmail &&
       email === adminEmail;
 
-    /*
-     * Token Google.
-     */
     const token =
       await getGoogleAccessToken(
         context.env
@@ -762,10 +679,6 @@ export async function onRequestGet(
           "'M&S'!A1:AT30"
         ),
 
-        /*
-         * Zwiększamy zakres, żeby
-         * obejmował dalszą część sezonu.
-         */
         getSheetRange(
           context.env,
           token,
@@ -786,11 +699,6 @@ export async function onRequestGet(
           "FORMATTED_VALUE"
         ),
 
-        /*
-         * Ważne:
-         * pobieramy datę dokładnie tak,
-         * jak jest wyświetlana w arkuszu.
-         */
         getSheetRange(
           context.env,
           token,
@@ -832,10 +740,6 @@ export async function onRequestGet(
 
           isAdmin,
 
-          /*
-           * Przydatne tylko do testu.
-           * Nie zawiera żadnych sekretów.
-           */
           scheduleEntries:
             startMap.size
         },
@@ -859,13 +763,6 @@ export async function onRequestGet(
       },
       {
         headers: {
-          /*
-           * Bardzo ważne:
-           * odpowiedź jest inna dla
-           * każdego zalogowanego gracza,
-           * więc nie może być współdzielona
-           * z cache.
-           */
           "Cache-Control":
             "private, no-store, no-cache, must-revalidate"
         }
