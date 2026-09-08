@@ -5,6 +5,33 @@ function base64url(input) {
     .replace(/=+$/g, "");
 }
 
+function base64urlToBytes(input) {
+  input = input
+    .replace(/-/g, "+")
+    .replace(/_/g, "/");
+
+  while (input.length % 4) {
+    input += "=";
+  }
+
+  const binary = atob(input);
+  const bytes = new Uint8Array(binary.length);
+
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+
+  return bytes;
+}
+
+function decodeJwtPart(part) {
+  return JSON.parse(
+    new TextDecoder().decode(
+      base64urlToBytes(part)
+    )
+  );
+}
+
 function pemToArrayBuffer(pem) {
   const b64 = pem
     .replace(/-----BEGIN PRIVATE KEY-----/g, "")
@@ -21,8 +48,168 @@ function pemToArrayBuffer(pem) {
   return bytes.buffer;
 }
 
+function normalizeTeamDomain(value) {
+  let domain = String(value || "").trim();
+
+  if (!domain) {
+    return "";
+  }
+
+  if (!/^https?:\/\//i.test(domain)) {
+    domain = "https://" + domain;
+  }
+
+  return domain.replace(/\/+$/, "");
+}
+
+/*
+ * Sprawdzenie użytkownika zalogowanego przez
+ * Cloudflare Access.
+ */
+async function verifyCloudflareAccess(
+  request,
+  env
+) {
+  const teamDomain =
+    normalizeTeamDomain(env.TEAM_DOMAIN);
+
+  const expectedAud =
+    String(env.POLICY_AUD || "").trim();
+
+  if (!teamDomain) {
+    throw new Error(
+      "Brak TEAM_DOMAIN."
+    );
+  }
+
+  if (!expectedAud) {
+    throw new Error(
+      "Brak POLICY_AUD."
+    );
+  }
+
+  const token =
+    request.headers.get(
+      "Cf-Access-Jwt-Assertion"
+    );
+
+  if (!token) {
+    throw new Error(
+      "Brak tokenu Cloudflare Access."
+    );
+  }
+
+  const parts = token.split(".");
+
+  if (parts.length !== 3) {
+    throw new Error(
+      "Nieprawidłowy token Cloudflare Access."
+    );
+  }
+
+  const header =
+    decodeJwtPart(parts[0]);
+
+  const payload =
+    decodeJwtPart(parts[1]);
+
+  const certsResponse =
+    await fetch(
+      `${teamDomain}/cdn-cgi/access/certs`
+    );
+
+  if (!certsResponse.ok) {
+    throw new Error(
+      "Nie udało się pobrać kluczy Cloudflare Access."
+    );
+  }
+
+  const certs =
+    await certsResponse.json();
+
+  const jwk =
+    Array.isArray(certs.keys)
+      ? certs.keys.find(
+          key =>
+            key.kid === header.kid
+        )
+      : null;
+
+  if (!jwk) {
+    throw new Error(
+      "Nie znaleziono klucza podpisu Cloudflare."
+    );
+  }
+
+  const publicKey =
+    await crypto.subtle.importKey(
+      "jwk",
+      jwk,
+      {
+        name: "RSASSA-PKCS1-v1_5",
+        hash: "SHA-256"
+      },
+      false,
+      ["verify"]
+    );
+
+  const valid =
+    await crypto.subtle.verify(
+      "RSASSA-PKCS1-v1_5",
+      publicKey,
+      base64urlToBytes(parts[2]),
+      new TextEncoder().encode(
+        `${parts[0]}.${parts[1]}`
+      )
+    );
+
+  if (!valid) {
+    throw new Error(
+      "Nieprawidłowy podpis Cloudflare Access."
+    );
+  }
+
+  const now =
+    Math.floor(Date.now() / 1000);
+
+  if (
+    payload.exp &&
+    payload.exp < now
+  ) {
+    throw new Error(
+      "Sesja Cloudflare Access wygasła."
+    );
+  }
+
+  const issuer =
+    String(payload.iss || "")
+      .replace(/\/+$/, "");
+
+  if (issuer !== teamDomain) {
+    throw new Error(
+      "Nieprawidłowy TEAM_DOMAIN."
+    );
+  }
+
+  const audiences =
+    Array.isArray(payload.aud)
+      ? payload.aud
+      : [payload.aud];
+
+  if (
+    !audiences.includes(expectedAud)
+  ) {
+    throw new Error(
+      "Nieprawidłowy POLICY_AUD."
+    );
+  }
+
+  return payload;
+}
+
 async function getGoogleAccessToken(env) {
-  const now = Math.floor(Date.now() / 1000);
+  const now =
+    Math.floor(Date.now() / 1000);
 
   const header = {
     alg: "RS256",
@@ -30,63 +217,94 @@ async function getGoogleAccessToken(env) {
   };
 
   const payload = {
-    iss: env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
-    scope: "https://www.googleapis.com/auth/spreadsheets",
-    aud: "https://oauth2.googleapis.com/token",
+    iss:
+      env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
+
+    scope:
+      "https://www.googleapis.com/auth/spreadsheets",
+
+    aud:
+      "https://oauth2.googleapis.com/token",
+
     iat: now,
     exp: now + 3600
   };
 
-  const encodedHeader = base64url(JSON.stringify(header));
-  const encodedPayload = base64url(JSON.stringify(payload));
-  const unsignedToken = `${encodedHeader}.${encodedPayload}`;
+  const encodedHeader =
+    base64url(
+      JSON.stringify(header)
+    );
 
-  const privateKey = env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, "\n");
+  const encodedPayload =
+    base64url(
+      JSON.stringify(payload)
+    );
 
-  const cryptoKey = await crypto.subtle.importKey(
-    "pkcs8",
-    pemToArrayBuffer(privateKey),
-    {
-      name: "RSASSA-PKCS1-v1_5",
-      hash: "SHA-256"
-    },
-    false,
-    ["sign"]
-  );
+  const unsignedToken =
+    `${encodedHeader}.${encodedPayload}`;
 
-  const signature = await crypto.subtle.sign(
-    "RSASSA-PKCS1-v1_5",
-    cryptoKey,
-    new TextEncoder().encode(unsignedToken)
-  );
+  const privateKey =
+    env.GOOGLE_PRIVATE_KEY
+      .replace(/\\n/g, "\n");
 
-  const signatureString = String.fromCharCode(
-    ...new Uint8Array(signature)
-  );
-
-  const jwt = `${unsignedToken}.${base64url(signatureString)}`;
-
-  const response = await fetch(
-    "https://oauth2.googleapis.com/token",
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded"
+  const cryptoKey =
+    await crypto.subtle.importKey(
+      "pkcs8",
+      pemToArrayBuffer(privateKey),
+      {
+        name:
+          "RSASSA-PKCS1-v1_5",
+        hash: "SHA-256"
       },
-      body: new URLSearchParams({
-        grant_type:
-          "urn:ietf:params:oauth:grant-type:jwt-bearer",
-        assertion: jwt
-      })
-    }
-  );
+      false,
+      ["sign"]
+    );
 
-  const result = await response.json();
+  const signature =
+    await crypto.subtle.sign(
+      "RSASSA-PKCS1-v1_5",
+      cryptoKey,
+      new TextEncoder().encode(
+        unsignedToken
+      )
+    );
+
+  const signatureString =
+    String.fromCharCode(
+      ...new Uint8Array(signature)
+    );
+
+  const jwt =
+    `${unsignedToken}.` +
+    base64url(signatureString);
+
+  const response =
+    await fetch(
+      "https://oauth2.googleapis.com/token",
+      {
+        method: "POST",
+
+        headers: {
+          "Content-Type":
+            "application/x-www-form-urlencoded"
+        },
+
+        body: new URLSearchParams({
+          grant_type:
+            "urn:ietf:params:oauth:grant-type:jwt-bearer",
+
+          assertion: jwt
+        })
+      }
+    );
+
+  const result =
+    await response.json();
 
   if (!response.ok) {
     throw new Error(
       "Google authentication failed: " +
-        JSON.stringify(result)
+      JSON.stringify(result)
     );
   }
 
@@ -97,93 +315,579 @@ async function getSheetRange(
   env,
   token,
   range,
-  valueRenderOption = "UNFORMATTED_VALUE"
+  valueRenderOption =
+    "UNFORMATTED_VALUE"
 ) {
   const url =
     `https://sheets.googleapis.com/v4/spreadsheets/` +
-    `${env.GOOGLE_SHEET_ID}/values/${encodeURIComponent(range)}` +
+    `${env.GOOGLE_SHEET_ID}/values/` +
+    `${encodeURIComponent(range)}` +
     `?valueRenderOption=${valueRenderOption}`;
 
-  const response = await fetch(url, {
-    headers: {
-      Authorization: `Bearer ${token}`
-    }
-  });
+  const response =
+    await fetch(url, {
+      headers: {
+        Authorization:
+          `Bearer ${token}`
+      }
+    });
 
-  const result = await response.json();
+  const result =
+    await response.json();
 
   if (!response.ok) {
     throw new Error(
       `Google Sheets error for ${range}: ` +
-        JSON.stringify(result)
+      JSON.stringify(result)
     );
   }
 
   return result.values || [];
 }
 
-export async function onRequestGet(context) {
+/*
+ * Zamienia np.:
+ *
+ * 08.09.2026 20:45
+ *
+ * na liczbę:
+ *
+ * 202609082045
+ *
+ * Dzięki temu możemy porównywać daty
+ * w polskiej strefie czasowej bez problemów
+ * z UTC.
+ */
+function parsePolishDateTime(value) {
+  const text =
+    String(value || "").trim();
+
+  if (!text) {
+    return null;
+  }
+
+  const match =
+    text.match(
+      /^(\d{1,2})[.\-/](\d{1,2})[.\-/](\d{4})(?:\s+(\d{1,2}):(\d{2}))?/
+    );
+
+  if (!match) {
+    return null;
+  }
+
+  const day =
+    Number(match[1]);
+
+  const month =
+    Number(match[2]);
+
+  const year =
+    Number(match[3]);
+
+  const hour =
+    Number(match[4] || 0);
+
+  const minute =
+    Number(match[5] || 0);
+
+  return (
+    year * 100000000 +
+    month * 1000000 +
+    day * 10000 +
+    hour * 100 +
+    minute
+  );
+}
+
+function getWarsawNowNumber() {
+  const parts =
+    new Intl.DateTimeFormat(
+      "pl-PL",
+      {
+        timeZone: "Europe/Warsaw",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        hourCycle: "h23"
+      }
+    ).formatToParts(
+      new Date()
+    );
+
+  const get =
+    type =>
+      Number(
+        parts.find(
+          p => p.type === type
+        )?.value || 0
+      );
+
+  return (
+    get("year") * 100000000 +
+    get("month") * 1000000 +
+    get("day") * 10000 +
+    get("hour") * 100 +
+    get("minute")
+  );
+}
+
+function normalizeSegment(value) {
+  return String(
+    value ?? ""
+  ).trim();
+}
+
+/*
+ * WWW_KOLEJKI:
+ *
+ * A = KOLEJKA
+ * B = START
+ */
+function buildStartMap(rows) {
+  const map = new Map();
+
+  for (
+    let i = 1;
+    i < rows.length;
+    i++
+  ) {
+    const row =
+      Array.isArray(rows[i])
+        ? rows[i]
+        : [];
+
+    const segment =
+      normalizeSegment(row[0]);
+
+    const start =
+      parsePolishDateTime(
+        row[1]
+      );
+
+    if (
+      segment &&
+      start !== null
+    ) {
+      map.set(
+        segment,
+        start
+      );
+    }
+  }
+
+  return map;
+}
+
+/*
+ * WWW_UZYTKOWNICY:
+ *
+ * A = EMAIL
+ * B = NAZWA
+ * C = AKTYWNY
+ */
+function findLoggedInPlayer(
+  rows,
+  email
+) {
+  const wanted =
+    String(email || "")
+      .trim()
+      .toLowerCase();
+
+  if (!wanted) {
+    return "";
+  }
+
+  for (
+    let i = 1;
+    i < rows.length;
+    i++
+  ) {
+    const row =
+      Array.isArray(rows[i])
+        ? rows[i]
+        : [];
+
+    const rowEmail =
+      String(row[0] || "")
+        .trim()
+        .toLowerCase();
+
+    const name =
+      String(row[1] || "")
+        .trim();
+
+    const active =
+      String(
+        row[2] ?? "TAK"
+      )
+        .trim()
+        .toUpperCase();
+
+    if (
+      rowEmail === wanted &&
+      name &&
+      ![
+        "NIE",
+        "NO",
+        "FALSE",
+        "0"
+      ].includes(active)
+    ) {
+      return name;
+    }
+  }
+
+  return "";
+}
+
+/*
+ * Najważniejsza funkcja prywatności.
+ *
+ * W TT zawodnicy zaczynają się od
+ * kolumny O (indeks 14).
+ *
+ * Każdy zawodnik zajmuje 4 kolumny.
+ *
+ * Jeśli dana część kolejki jeszcze
+ * się nie rozpoczęła, czyścimy dane
+ * pozostałych zawodników.
+ */
+function protectTT(
+  ttRows,
+  startMap,
+  currentPlayer,
+  isAdmin
+) {
+  if (!Array.isArray(ttRows)) {
+    return [];
+  }
+
+  /*
+   * Administrator widzi wszystko.
+   */
+  if (isAdmin) {
+    return ttRows;
+  }
+
+  const now =
+    getWarsawNowNumber();
+
+  /*
+   * Robimy kopię, aby nie modyfikować
+   * danych źródłowych.
+   */
+  const protectedRows =
+    ttRows.map(row =>
+      Array.isArray(row)
+        ? [...row]
+        : []
+    );
+
+  const header =
+    protectedRows[0] || [];
+
+  /*
+   * Ustalamy, która grupa kolumn
+   * należy do którego zawodnika.
+   */
+  const playerColumns = [];
+
+  for (
+    let c = 14;
+    c <= 50;
+    c += 4
+  ) {
+    const name =
+      String(
+        header[c] || ""
+      ).trim();
+
+    if (name) {
+      playerColumns.push({
+        column: c,
+        name
+      });
+    }
+  }
+
+  /*
+   * Wiersze z meczami zaczynają się
+   * od trzeciego wiersza arkusza.
+   */
+  for (
+    let r = 2;
+    r < protectedRows.length;
+    r++
+  ) {
+    const row =
+      protectedRows[r];
+
+    /*
+     * Kolumna C = numer/część kolejki.
+     *
+     * Przykłady:
+     * 3
+     * 3.2
+     * 5.3
+     */
+    const segment =
+      normalizeSegment(
+        row[2]
+      );
+
+    if (!segment) {
+      continue;
+    }
+
+    const start =
+      startMap.get(segment);
+
+    /*
+     * Jeżeli nie ma wpisu w WWW_KOLEJKI,
+     * traktujemy część jako zamkniętą.
+     *
+     * To chroni przed przypadkowym
+     * ujawnieniem typów.
+     */
+    const unlocked =
+      start !== undefined &&
+      now >= start;
+
+    if (unlocked) {
+      continue;
+    }
+
+    /*
+     * Przed startem pozostawiamy tylko
+     * typ zalogowanego zawodnika.
+     *
+     * Wszystkim pozostałym czyścimy
+     * cztery kolumny należące do ich
+     * zestawu.
+     */
+    for (
+      const player of playerColumns
+    ) {
+      if (
+        currentPlayer &&
+        player.name ===
+          currentPlayer
+      ) {
+        continue;
+      }
+
+      const c =
+        player.column;
+
+      row[c] = null;
+      row[c + 1] = null;
+      row[c + 2] = null;
+      row[c + 3] = null;
+    }
+  }
+
+  return protectedRows;
+}
+
+export async function onRequestGet(
+  context
+) {
   try {
-    const token = await getGoogleAccessToken(context.env);
+    /*
+     * Najpierw ustalamy, kto jest
+     * zalogowany.
+     */
+    const access =
+      await verifyCloudflareAccess(
+        context.request,
+        context.env
+      );
+
+    const email =
+      String(
+        access.email || ""
+      )
+        .trim()
+        .toLowerCase();
+
+    const adminEmail =
+      String(
+        context.env.ADMIN_EMAIL ||
+        ""
+      )
+        .trim()
+        .toLowerCase();
+
+    const isAdmin =
+      !!email &&
+      !!adminEmail &&
+      email === adminEmail;
+
+    /*
+     * Token Google.
+     */
+    const token =
+      await getGoogleAccessToken(
+        context.env
+      );
 
     const [
       generalka,
       tabelaKolejki,
       ms,
-      tt,
-      aktualnosci
-    ] = await Promise.all([
-      getSheetRange(
-        context.env,
-        token,
-        "GENERALKA!A1:I20"
-      ),
+      ttRaw,
+      aktualnosci,
+      uzytkownicy,
+      kolejki
+    ] =
+      await Promise.all([
+        getSheetRange(
+          context.env,
+          token,
+          "GENERALKA!A1:I20"
+        ),
 
-      getSheetRange(
-        context.env,
-        token,
-        "'TABELA KOLEJKI'!A1:H20"
-      ),
+        getSheetRange(
+          context.env,
+          token,
+          "'TABELA KOLEJKI'!A1:H20"
+        ),
 
-      getSheetRange(
-        context.env,
-        token,
-        "'M&S'!A1:AT30"
-      ),
+        getSheetRange(
+          context.env,
+          token,
+          "'M&S'!A1:AT30"
+        ),
 
-      getSheetRange(
-        context.env,
-        token,
-        "TT!A1:BG80"
-      ),
+        /*
+         * Zwiększamy zakres, żeby
+         * obejmował dalszą część sezonu.
+         */
+        getSheetRange(
+          context.env,
+          token,
+          "TT!A1:BG600"
+        ),
 
-      getSheetRange(
-        context.env,
-        token,
-        "'WWW_AKTUALNOSCI'!A1:F200",
-        "FORMATTED_VALUE"
-      )
-    ]);
+        getSheetRange(
+          context.env,
+          token,
+          "'WWW_AKTUALNOSCI'!A1:F200",
+          "FORMATTED_VALUE"
+        ),
 
-    return Response.json({
-      ok: true,
-      timestamp: new Date().toISOString(),
-      sheets: {
-        GENERALKA: generalka,
-        TABELA_KOLEJKI: tabelaKolejki,
-        MS: ms,
-        TT: tt,
-        AKTUALNOSCI: aktualnosci
+        getSheetRange(
+          context.env,
+          token,
+          "'WWW_UZYTKOWNICY'!A1:C100",
+          "FORMATTED_VALUE"
+        ),
+
+        /*
+         * Ważne:
+         * pobieramy datę dokładnie tak,
+         * jak jest wyświetlana w arkuszu.
+         */
+        getSheetRange(
+          context.env,
+          token,
+          "'WWW_KOLEJKI'!A1:B200",
+          "FORMATTED_VALUE"
+        )
+      ]);
+
+    const currentPlayer =
+      findLoggedInPlayer(
+        uzytkownicy,
+        email
+      );
+
+    const startMap =
+      buildStartMap(
+        kolejki
+      );
+
+    const tt =
+      protectTT(
+        ttRaw,
+        startMap,
+        currentPlayer,
+        isAdmin
+      );
+
+    return Response.json(
+      {
+        ok: true,
+
+        timestamp:
+          new Date()
+            .toISOString(),
+
+        privacy: {
+          player:
+            currentPlayer || null,
+
+          isAdmin,
+
+          /*
+           * Przydatne tylko do testu.
+           * Nie zawiera żadnych sekretów.
+           */
+          scheduleEntries:
+            startMap.size
+        },
+
+        sheets: {
+          GENERALKA:
+            generalka,
+
+          TABELA_KOLEJKI:
+            tabelaKolejki,
+
+          MS:
+            ms,
+
+          TT:
+            tt,
+
+          AKTUALNOSCI:
+            aktualnosci
+        }
+      },
+      {
+        headers: {
+          /*
+           * Bardzo ważne:
+           * odpowiedź jest inna dla
+           * każdego zalogowanego gracza,
+           * więc nie może być współdzielona
+           * z cache.
+           */
+          "Cache-Control":
+            "private, no-store, no-cache, must-revalidate"
+        }
       }
-    });
+    );
   } catch (error) {
     return Response.json(
       {
         ok: false,
-        error: error.message
+
+        error:
+          error instanceof Error
+            ? error.message
+            : String(error)
       },
       {
-        status: 500
+        status: 500,
+
+        headers: {
+          "Cache-Control":
+            "no-store"
+        }
       }
     );
   }
