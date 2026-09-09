@@ -1,1249 +1,1121 @@
-{
-  "season": "2026/2027",
-  "round": 1,
-  "general": [
-    {
-      "pos": 1,
-      "name": "Krzysztof",
-      "pts": 5,
-      "three": 1,
-      "two": 0,
-      "one": 2
-    },
-    {
-      "pos": 2,
-      "name": "Dzik",
-      "pts": 4,
-      "three": 1,
-      "two": 0,
-      "one": 1
-    },
-    {
-      "pos": 3,
-      "name": "Dec",
-      "pts": 4,
-      "three": 1,
-      "two": 0,
-      "one": 1
-    },
-    {
-      "pos": 4,
-      "name": "Ćwieku",
-      "pts": 4,
-      "three": 1,
-      "two": 0,
-      "one": 1
-    },
-    {
-      "pos": 5,
-      "name": "Sapcio",
-      "pts": 4,
-      "three": 1,
-      "two": 0,
-      "one": 1
-    },
-    {
-      "pos": 6,
-      "name": "Kamil",
-      "pts": 3,
-      "three": 1,
-      "two": 0,
-      "one": 0
-    },
-    {
-      "pos": 7,
-      "name": "Krzyś",
-      "pts": 3,
-      "three": 1,
-      "two": 0,
-      "one": 0
-    },
-    {
-      "pos": 8,
-      "name": "Kubuś",
-      "pts": 3,
-      "three": 0,
-      "two": 1,
-      "one": 1
-    },
-    {
-      "pos": 9,
-      "name": "Piotrek",
-      "pts": 1,
-      "three": 0,
-      "two": 0,
-      "one": 1
-    },
-    {
-      "pos": 10,
-      "name": "Lewy",
-      "pts": 1,
-      "three": 0,
-      "two": 0,
-      "one": 1
+function base64url(input) {
+  return btoa(input)
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/g, "");
+}
+
+function base64urlToBytes(input) {
+  input = input
+    .replace(/-/g, "+")
+    .replace(/_/g, "/");
+
+  while (input.length % 4) {
+    input += "=";
+  }
+
+  const binary = atob(input);
+  const bytes = new Uint8Array(binary.length);
+
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+
+  return bytes;
+}
+
+function decodeJwtPart(part) {
+  return JSON.parse(
+    new TextDecoder().decode(
+      base64urlToBytes(part)
+    )
+  );
+}
+
+function pemToArrayBuffer(pem) {
+  const b64 = pem
+    .replace(/-----BEGIN PRIVATE KEY-----/g, "")
+    .replace(/-----END PRIVATE KEY-----/g, "")
+    .replace(/\s/g, "");
+
+  const binary = atob(b64);
+  const bytes = new Uint8Array(binary.length);
+
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+
+  return bytes.buffer;
+}
+
+function normalizeTeamDomain(value) {
+  let domain = String(value || "").trim();
+
+  if (!domain) {
+    return "";
+  }
+
+  if (!/^https?:\/\//i.test(domain)) {
+    domain = "https://" + domain;
+  }
+
+  return domain.replace(/\/+$/, "");
+}
+
+function normalizeName(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase();
+}
+
+function normalizeSegment(value) {
+  return String(value ?? "")
+    .trim();
+}
+
+async function verifyCloudflareAccess(
+  request,
+  env
+) {
+  const teamDomain =
+    normalizeTeamDomain(
+      env.TEAM_DOMAIN
+    );
+
+  const expectedAud =
+    String(
+      env.POLICY_AUD || ""
+    ).trim();
+
+  if (!teamDomain) {
+    throw new Error(
+      "Brak TEAM_DOMAIN."
+    );
+  }
+
+  if (!expectedAud) {
+    throw new Error(
+      "Brak POLICY_AUD."
+    );
+  }
+
+  const token =
+    request.headers.get(
+      "Cf-Access-Jwt-Assertion"
+    );
+
+  if (!token) {
+    throw new Error(
+      "Brak tokenu Cloudflare Access."
+    );
+  }
+
+  const parts =
+    token.split(".");
+
+  if (parts.length !== 3) {
+    throw new Error(
+      "Nieprawidłowy token Cloudflare Access."
+    );
+  }
+
+  const header =
+    decodeJwtPart(
+      parts[0]
+    );
+
+  const payload =
+    decodeJwtPart(
+      parts[1]
+    );
+
+  const certsResponse =
+    await fetch(
+      `${teamDomain}/cdn-cgi/access/certs`
+    );
+
+  if (!certsResponse.ok) {
+    throw new Error(
+      "Nie udało się pobrać kluczy Cloudflare Access."
+    );
+  }
+
+  const certs =
+    await certsResponse.json();
+
+  const jwk =
+    Array.isArray(certs.keys)
+      ? certs.keys.find(
+          key =>
+            key.kid ===
+            header.kid
+        )
+      : null;
+
+  if (!jwk) {
+    throw new Error(
+      "Nie znaleziono klucza podpisu Cloudflare."
+    );
+  }
+
+  const publicKey =
+    await crypto.subtle.importKey(
+      "jwk",
+      jwk,
+      {
+        name:
+          "RSASSA-PKCS1-v1_5",
+        hash:
+          "SHA-256"
+      },
+      false,
+      ["verify"]
+    );
+
+  const valid =
+    await crypto.subtle.verify(
+      "RSASSA-PKCS1-v1_5",
+      publicKey,
+      base64urlToBytes(
+        parts[2]
+      ),
+      new TextEncoder().encode(
+        `${parts[0]}.${parts[1]}`
+      )
+    );
+
+  if (!valid) {
+    throw new Error(
+      "Nieprawidłowy podpis Cloudflare Access."
+    );
+  }
+
+  const now =
+    Math.floor(
+      Date.now() / 1000
+    );
+
+  if (
+    payload.exp &&
+    payload.exp < now
+  ) {
+    throw new Error(
+      "Sesja Cloudflare Access wygasła."
+    );
+  }
+
+  const issuer =
+    String(
+      payload.iss || ""
+    ).replace(/\/+$/, "");
+
+  if (
+    issuer !==
+    teamDomain
+  ) {
+    throw new Error(
+      "Nieprawidłowy TEAM_DOMAIN."
+    );
+  }
+
+  const audiences =
+    Array.isArray(
+      payload.aud
+    )
+      ? payload.aud
+      : [payload.aud];
+
+  if (
+    !audiences.includes(
+      expectedAud
+    )
+  ) {
+    throw new Error(
+      "Nieprawidłowy POLICY_AUD."
+    );
+  }
+
+  return payload;
+}
+
+async function getGoogleAccessToken(
+  env
+) {
+  const now =
+    Math.floor(
+      Date.now() / 1000
+    );
+
+  const header = {
+    alg: "RS256",
+    typ: "JWT"
+  };
+
+  const payload = {
+    iss:
+      env
+        .GOOGLE_SERVICE_ACCOUNT_EMAIL,
+
+    scope:
+      "https://www.googleapis.com/auth/spreadsheets",
+
+    aud:
+      "https://oauth2.googleapis.com/token",
+
+    iat: now,
+    exp: now + 3600
+  };
+
+  const encodedHeader =
+    base64url(
+      JSON.stringify(
+        header
+      )
+    );
+
+  const encodedPayload =
+    base64url(
+      JSON.stringify(
+        payload
+      )
+    );
+
+  const unsignedToken =
+    `${encodedHeader}.${encodedPayload}`;
+
+  const privateKey =
+    env.GOOGLE_PRIVATE_KEY
+      .replace(
+        /\\n/g,
+        "\n"
+      );
+
+  const cryptoKey =
+    await crypto.subtle.importKey(
+      "pkcs8",
+      pemToArrayBuffer(
+        privateKey
+      ),
+      {
+        name:
+          "RSASSA-PKCS1-v1_5",
+        hash:
+          "SHA-256"
+      },
+      false,
+      ["sign"]
+    );
+
+  const signature =
+    await crypto.subtle.sign(
+      "RSASSA-PKCS1-v1_5",
+      cryptoKey,
+      new TextEncoder().encode(
+        unsignedToken
+      )
+    );
+
+  const signatureString =
+    String.fromCharCode(
+      ...new Uint8Array(
+        signature
+      )
+    );
+
+  const jwt =
+    `${unsignedToken}.` +
+    base64url(
+      signatureString
+    );
+
+  const response =
+    await fetch(
+      "https://oauth2.googleapis.com/token",
+      {
+        method: "POST",
+
+        headers: {
+          "Content-Type":
+            "application/x-www-form-urlencoded"
+        },
+
+        body:
+          new URLSearchParams({
+            grant_type:
+              "urn:ietf:params:oauth:grant-type:jwt-bearer",
+
+            assertion:
+              jwt
+          })
+      }
+    );
+
+  const result =
+    await response.json();
+
+  if (!response.ok) {
+    throw new Error(
+      "Google authentication failed: " +
+      JSON.stringify(
+        result
+      )
+    );
+  }
+
+  return result.access_token;
+}
+
+async function getSheetRange(
+  env,
+  token,
+  range,
+  valueRenderOption =
+    "UNFORMATTED_VALUE"
+) {
+  const url =
+    `https://sheets.googleapis.com/v4/spreadsheets/` +
+    `${env.GOOGLE_SHEET_ID}/values/` +
+    `${encodeURIComponent(range)}` +
+    `?valueRenderOption=${valueRenderOption}`;
+
+  const response =
+    await fetch(
+      url,
+      {
+        headers: {
+          Authorization:
+            `Bearer ${token}`
+        }
+      }
+    );
+
+  const result =
+    await response.json();
+
+  if (!response.ok) {
+    throw new Error(
+      `Google Sheets error for ${range}: ` +
+      JSON.stringify(
+        result
+      )
+    );
+  }
+
+  return result.values || [];
+}
+
+/*
+ * Obsługuje dwa formaty:
+ *
+ * 2026-09-08 21:00:00
+ * 2026-09-08 21:00
+ *
+ * oraz:
+ *
+ * 08.09.2026 21:00
+ * 08-09-2026 21:00
+ * 08/09/2026 21:00
+ */
+function parsePolishDateTime(
+  value
+) {
+  const text =
+    String(
+      value || ""
+    ).trim();
+
+  if (!text) {
+    return null;
+  }
+
+  /*
+   * FORMAT:
+   * YYYY-MM-DD HH:mm:ss
+   */
+  let match =
+    text.match(
+      /^(\d{4})-(\d{1,2})-(\d{1,2})[ T](\d{1,2}):(\d{2})(?::(\d{2}))?/
+    );
+
+  if (match) {
+    const year =
+      Number(match[1]);
+
+    const month =
+      Number(match[2]);
+
+    const day =
+      Number(match[3]);
+
+    const hour =
+      Number(match[4]);
+
+    const minute =
+      Number(match[5]);
+
+    return (
+      year * 100000000 +
+      month * 1000000 +
+      day * 10000 +
+      hour * 100 +
+      minute
+    );
+  }
+
+  /*
+   * FORMAT:
+   * DD.MM.YYYY HH:mm
+   */
+  match =
+    text.match(
+      /^(\d{1,2})[.\-/](\d{1,2})[.\-/](\d{4})(?:\s+(\d{1,2}):(\d{2}))?/
+    );
+
+  if (match) {
+    const day =
+      Number(match[1]);
+
+    const month =
+      Number(match[2]);
+
+    const year =
+      Number(match[3]);
+
+    const hour =
+      Number(
+        match[4] || 0
+      );
+
+    const minute =
+      Number(
+        match[5] || 0
+      );
+
+    return (
+      year * 100000000 +
+      month * 1000000 +
+      day * 10000 +
+      hour * 100 +
+      minute
+    );
+  }
+
+  return null;
+}
+
+function getWarsawNowNumber() {
+  const parts =
+    new Intl.DateTimeFormat(
+      "pl-PL",
+      {
+        timeZone:
+          "Europe/Warsaw",
+
+        year:
+          "numeric",
+
+        month:
+          "2-digit",
+
+        day:
+          "2-digit",
+
+        hour:
+          "2-digit",
+
+        minute:
+          "2-digit",
+
+        hourCycle:
+          "h23"
+      }
+    )
+      .formatToParts(
+        new Date()
+      );
+
+  const get =
+    type =>
+      Number(
+        parts.find(
+          p =>
+            p.type ===
+            type
+        )?.value || 0
+      );
+
+  return (
+    get("year") *
+      100000000 +
+
+    get("month") *
+      1000000 +
+
+    get("day") *
+      10000 +
+
+    get("hour") *
+      100 +
+
+    get("minute")
+  );
+}
+
+/*
+ * WWW_KOLEJKI
+ *
+ * A = KOLEJKA
+ * B = START
+ */
+function buildStartMap(
+  rows
+) {
+  const map =
+    new Map();
+
+  for (
+    let i = 1;
+    i < rows.length;
+    i++
+  ) {
+    const row =
+      Array.isArray(
+        rows[i]
+      )
+        ? rows[i]
+        : [];
+
+    const segment =
+      normalizeSegment(
+        row[0]
+      );
+
+    const start =
+      parsePolishDateTime(
+        row[1]
+      );
+
+    if (
+      segment &&
+      start !== null
+    ) {
+      map.set(
+        segment,
+        start
+      );
     }
-  ],
-  "roundTable": [
-    {
-      "pos": 1,
-      "name": "Krzysztof",
-      "pts": 5,
-      "three": 1,
-      "two": 0,
-      "one": 2,
-      "avg": 0.45454545454545453
-    },
-    {
-      "pos": 2,
-      "name": "Dzik",
-      "pts": 4,
-      "three": 1,
-      "two": 0,
-      "one": 1,
-      "avg": 0.36363636363636365
-    },
-    {
-      "pos": 3,
-      "name": "Dec",
-      "pts": 4,
-      "three": 1,
-      "two": 0,
-      "one": 1,
-      "avg": 0.36363636363636365
-    },
-    {
-      "pos": 4,
-      "name": "Ćwieku",
-      "pts": 4,
-      "three": 1,
-      "two": 0,
-      "one": 1,
-      "avg": 0.36363636363636365
-    },
-    {
-      "pos": 5,
-      "name": "Sapcio",
-      "pts": 4,
-      "three": 1,
-      "two": 0,
-      "one": 1,
-      "avg": 0.36363636363636365
-    },
-    {
-      "pos": 6,
-      "name": "Kamil",
-      "pts": 3,
-      "three": 1,
-      "two": 0,
-      "one": 0,
-      "avg": 0.2727272727272727
-    },
-    {
-      "pos": 7,
-      "name": "Krzyś",
-      "pts": 3,
-      "three": 1,
-      "two": 0,
-      "one": 0,
-      "avg": 0.2727272727272727
-    },
-    {
-      "pos": 8,
-      "name": "Kubuś",
-      "pts": 3,
-      "three": 0,
-      "two": 1,
-      "one": 1,
-      "avg": 0.2727272727272727
-    },
-    {
-      "pos": 9,
-      "name": "Piotrek",
-      "pts": 1,
-      "three": 0,
-      "two": 0,
-      "one": 1,
-      "avg": 0.09090909090909091
-    },
-    {
-      "pos": 10,
-      "name": "Lewy",
-      "pts": 1,
-      "three": 0,
-      "two": 0,
-      "one": 1,
-      "avg": 0.09090909090909091
+  }
+
+  return map;
+}
+
+/*
+ * WWW_UZYTKOWNICY
+ *
+ * A = EMAIL
+ * B = NAZWA
+ * C = AKTYWNY
+ */
+function findLoggedInPlayer(
+  rows,
+  email
+) {
+  const wanted =
+    String(
+      email || ""
+    )
+      .trim()
+      .toLowerCase();
+
+  if (!wanted) {
+    return "";
+  }
+
+  for (
+    let i = 1;
+    i < rows.length;
+    i++
+  ) {
+    const row =
+      Array.isArray(
+        rows[i]
+      )
+        ? rows[i]
+        : [];
+
+    const rowEmail =
+      String(
+        row[0] || ""
+      )
+        .trim()
+        .toLowerCase();
+
+    const name =
+      String(
+        row[1] || ""
+      ).trim();
+
+    const active =
+      String(
+        row[2] ??
+          "TAK"
+      )
+        .trim()
+        .toUpperCase();
+
+    if (
+      rowEmail ===
+        wanted &&
+
+      name &&
+
+      ![
+        "NIE",
+        "NO",
+        "FALSE",
+        "0"
+      ].includes(
+        active
+      )
+    ) {
+      return name;
     }
-  ],
-  "recentMatches": [
-    {
-      "round": 1,
-      "competition": "La Liga",
-      "home": "Racing Santander",
-      "away": "Villarreal",
-      "homeScore": 2,
-      "awayScore": 2,
-      "predictions": {
-        "Kamil": "1:2",
-        "Piotrek": "1:2",
-        "Kubuś": "1:1",
-        "Dzik": "1:3",
-        "Krzyś": "1:2",
-        "Lewy": "1:2",
-        "Krzysztof": "2:2",
-        "Dec": "1:2",
-        "Ćwieku": "1:2",
-        "Sapcio": "1:2"
-      },
-      "points": {
-        "Kamil": 0,
-        "Piotrek": 0,
-        "Kubuś": 2,
-        "Dzik": 0,
-        "Krzyś": 0,
-        "Lewy": 0,
-        "Krzysztof": 3,
-        "Dec": 0,
-        "Ćwieku": 0,
-        "Sapcio": 0
-      }
-    },
-    {
-      "round": 1,
-      "competition": "La Liga",
-      "home": "Espanyol",
-      "away": "Levante",
-      "homeScore": 3,
-      "awayScore": 0,
-      "predictions": {
-        "Kamil": "1:1",
-        "Piotrek": "1:0",
-        "Kubuś": "2:1",
-        "Dzik": "1:0",
-        "Krzyś": "1:1",
-        "Lewy": "1:0",
-        "Krzysztof": "3:1",
-        "Dec": "1:0",
-        "Ćwieku": "2:0",
-        "Sapcio": "1:0"
-      },
-      "points": {
-        "Kamil": 0,
-        "Piotrek": 1,
-        "Kubuś": 1,
-        "Dzik": 1,
-        "Krzyś": 0,
-        "Lewy": 1,
-        "Krzysztof": 1,
-        "Dec": 1,
-        "Ćwieku": 1,
-        "Sapcio": 1
-      }
-    },
-    {
-      "round": 1,
-      "competition": "Ekstraklasa",
-      "home": "Górnik Zabrze",
-      "away": "Wisła Kraków",
-      "homeScore": 2,
-      "awayScore": 1,
-      "predictions": {
-        "Kamil": "2:1",
-        "Piotrek": "2:2",
-        "Kubuś": "1:1",
-        "Dzik": "2:1",
-        "Krzyś": "2:1",
-        "Lewy": "1:2",
-        "Krzysztof": "3:1",
-        "Dec": "2:1",
-        "Ćwieku": "2:1",
-        "Sapcio": "2:1"
-      },
-      "points": {
-        "Kamil": 3,
-        "Piotrek": 0,
-        "Kubuś": 0,
-        "Dzik": 3,
-        "Krzyś": 3,
-        "Lewy": 0,
-        "Krzysztof": 1,
-        "Dec": 3,
-        "Ćwieku": 3,
-        "Sapcio": 3
-      }
+  }
+
+  return "";
+}
+
+function scoreExists(
+  value
+) {
+  if (
+    value === null ||
+    value === undefined ||
+    value === ""
+  ) {
+    return false;
+  }
+
+  const n =
+    Number(value);
+
+  return Number.isFinite(
+    n
+  );
+}
+
+/*
+ * Jeżeli choć jeden mecz
+ * danej części ma wynik,
+ * uznajemy tę część za rozpoczętą.
+ *
+ * TT:
+ * C = kolejka / część
+ * G = gole gospodarzy
+ * I = gole gości
+ */
+function buildStartedSegmentsFromTT(
+  ttRows
+) {
+  const started =
+    new Set();
+
+  for (
+    let r = 2;
+    r < ttRows.length;
+    r++
+  ) {
+    const row =
+      Array.isArray(
+        ttRows[r]
+      )
+        ? ttRows[r]
+        : [];
+
+    const segment =
+      normalizeSegment(
+        row[2]
+      );
+
+    if (!segment) {
+      continue;
     }
-  ],
-  "upcomingMatches": [
-    {
-      "round": 1,
-      "competition": "Premier League",
-      "home": "Hull",
-      "away": "Manchester Utd",
-      "homeScore": null,
-      "awayScore": null,
-      "predictions": {
-        "Kamil": null,
-        "Piotrek": null,
-        "Kubuś": null,
-        "Dzik": null,
-        "Krzyś": null,
-        "Lewy": null,
-        "Krzysztof": null,
-        "Dec": null,
-        "Ćwieku": null,
-        "Sapcio": null
-      },
-      "points": {
-        "Kamil": 0,
-        "Piotrek": 0,
-        "Kubuś": 0,
-        "Dzik": 0,
-        "Krzyś": 0,
-        "Lewy": 0,
-        "Krzysztof": 0,
-        "Dec": 0,
-        "Ćwieku": 0,
-        "Sapcio": 0
-      }
-    },
-    {
-      "round": 1,
-      "competition": "Premier League",
-      "home": "Newcastle",
-      "away": "Liverpool",
-      "homeScore": null,
-      "awayScore": null,
-      "predictions": {
-        "Kamil": null,
-        "Piotrek": null,
-        "Kubuś": null,
-        "Dzik": null,
-        "Krzyś": null,
-        "Lewy": null,
-        "Krzysztof": null,
-        "Dec": null,
-        "Ćwieku": null,
-        "Sapcio": null
-      },
-      "points": {
-        "Kamil": 0,
-        "Piotrek": 0,
-        "Kubuś": 0,
-        "Dzik": 0,
-        "Krzyś": 0,
-        "Lewy": 0,
-        "Krzysztof": 0,
-        "Dec": 0,
-        "Ćwieku": 0,
-        "Sapcio": 0
-      }
-    },
-    {
-      "round": 1,
-      "competition": "La Liga",
-      "home": "Ath. Bilbao",
-      "away": "Sevilla",
-      "homeScore": null,
-      "awayScore": null,
-      "predictions": {
-        "Kamil": null,
-        "Piotrek": null,
-        "Kubuś": null,
-        "Dzik": null,
-        "Krzyś": null,
-        "Lewy": null,
-        "Krzysztof": null,
-        "Dec": null,
-        "Ćwieku": null,
-        "Sapcio": null
-      },
-      "points": {
-        "Kamil": 0,
-        "Piotrek": 0,
-        "Kubuś": 0,
-        "Dzik": 0,
-        "Krzyś": 0,
-        "Lewy": 0,
-        "Krzysztof": 0,
-        "Dec": 0,
-        "Ćwieku": 0,
-        "Sapcio": 0
-      }
-    },
-    {
-      "round": 1,
-      "competition": "La Liga",
-      "home": "Getafe",
-      "away": "Racing Santander",
-      "homeScore": null,
-      "awayScore": null,
-      "predictions": {
-        "Kamil": null,
-        "Piotrek": null,
-        "Kubuś": null,
-        "Dzik": null,
-        "Krzyś": null,
-        "Lewy": null,
-        "Krzysztof": null,
-        "Dec": null,
-        "Ćwieku": null,
-        "Sapcio": null
-      },
-      "points": {
-        "Kamil": 0,
-        "Piotrek": 0,
-        "Kubuś": 0,
-        "Dzik": 0,
-        "Krzyś": 0,
-        "Lewy": 0,
-        "Krzysztof": 0,
-        "Dec": 0,
-        "Ćwieku": 0,
-        "Sapcio": 0
-      }
-    },
-    {
-      "round": 1,
-      "competition": "Serie A",
-      "home": "Inter",
-      "away": "Monza",
-      "homeScore": null,
-      "awayScore": null,
-      "predictions": {
-        "Kamil": null,
-        "Piotrek": null,
-        "Kubuś": null,
-        "Dzik": null,
-        "Krzyś": null,
-        "Lewy": null,
-        "Krzysztof": null,
-        "Dec": null,
-        "Ćwieku": null,
-        "Sapcio": null
-      },
-      "points": {
-        "Kamil": 0,
-        "Piotrek": 0,
-        "Kubuś": 0,
-        "Dzik": 0,
-        "Krzyś": 0,
-        "Lewy": 0,
-        "Krzysztof": 0,
-        "Dec": 0,
-        "Ćwieku": 0,
-        "Sapcio": 0
-      }
-    },
-    {
-      "round": 1,
-      "competition": "Serie A",
-      "home": "Torino",
-      "away": "AC Milan",
-      "homeScore": null,
-      "awayScore": null,
-      "predictions": {
-        "Kamil": null,
-        "Piotrek": null,
-        "Kubuś": null,
-        "Dzik": null,
-        "Krzyś": null,
-        "Lewy": null,
-        "Krzysztof": null,
-        "Dec": null,
-        "Ćwieku": null,
-        "Sapcio": null
-      },
-      "points": {
-        "Kamil": 0,
-        "Piotrek": 0,
-        "Kubuś": 0,
-        "Dzik": 0,
-        "Krzyś": 0,
-        "Lewy": 0,
-        "Krzysztof": 0,
-        "Dec": 0,
-        "Ćwieku": 0,
-        "Sapcio": 0
-      }
-    },
-    {
-      "round": 1,
-      "competition": "Ekstraklasa",
-      "home": "Śląsk Wrocław",
-      "away": "Widzew Łódź",
-      "homeScore": null,
-      "awayScore": null,
-      "predictions": {
-        "Kamil": null,
-        "Piotrek": null,
-        "Kubuś": null,
-        "Dzik": null,
-        "Krzyś": null,
-        "Lewy": null,
-        "Krzysztof": null,
-        "Dec": null,
-        "Ćwieku": null,
-        "Sapcio": null
-      },
-      "points": {
-        "Kamil": 0,
-        "Piotrek": 0,
-        "Kubuś": 0,
-        "Dzik": 0,
-        "Krzyś": 0,
-        "Lewy": 0,
-        "Krzysztof": 0,
-        "Dec": 0,
-        "Ćwieku": 0,
-        "Sapcio": 0
-      }
-    },
-    {
-      "round": 1,
-      "competition": "La Liga",
-      "home": "Atl. Madryt",
-      "away": "Villarreal",
-      "homeScore": null,
-      "awayScore": null,
-      "predictions": {
-        "Kamil": null,
-        "Piotrek": null,
-        "Kubuś": null,
-        "Dzik": null,
-        "Krzyś": null,
-        "Lewy": null,
-        "Krzysztof": null,
-        "Dec": null,
-        "Ćwieku": null,
-        "Sapcio": null
-      },
-      "points": {
-        "Kamil": 0,
-        "Piotrek": 0,
-        "Kubuś": 0,
-        "Dzik": 0,
-        "Krzyś": 0,
-        "Lewy": 0,
-        "Krzysztof": 0,
-        "Dec": 0,
-        "Ćwieku": 0,
-        "Sapcio": 0
-      }
+
+    const homeScore =
+      row[6];
+
+    const awayScore =
+      row[8];
+
+    if (
+      scoreExists(
+        homeScore
+      ) &&
+      scoreExists(
+        awayScore
+      )
+    ) {
+      started.add(
+        segment
+      );
     }
-  ],
-  "matchDetails": [
-    {
-      "round": 1,
-      "competition": "La Liga",
-      "home": "Racing Santander",
-      "away": "Villarreal",
-      "homeScore": 2,
-      "awayScore": 2,
-      "predictions": {
-        "Kamil": "1:2",
-        "Piotrek": "1:2",
-        "Kubuś": "1:1",
-        "Dzik": "1:3",
-        "Krzyś": "1:2",
-        "Lewy": "1:2",
-        "Krzysztof": "2:2",
-        "Dec": "1:2",
-        "Ćwieku": "1:2",
-        "Sapcio": "1:2"
-      },
-      "points": {
-        "Kamil": 0,
-        "Piotrek": 0,
-        "Kubuś": 2,
-        "Dzik": 0,
-        "Krzyś": 0,
-        "Lewy": 0,
-        "Krzysztof": 3,
-        "Dec": 0,
-        "Ćwieku": 0,
-        "Sapcio": 0
-      }
-    },
-    {
-      "round": 1,
-      "competition": "La Liga",
-      "home": "Espanyol",
-      "away": "Levante",
-      "homeScore": 3,
-      "awayScore": 0,
-      "predictions": {
-        "Kamil": "1:1",
-        "Piotrek": "1:0",
-        "Kubuś": "2:1",
-        "Dzik": "1:0",
-        "Krzyś": "1:1",
-        "Lewy": "1:0",
-        "Krzysztof": "3:1",
-        "Dec": "1:0",
-        "Ćwieku": "2:0",
-        "Sapcio": "1:0"
-      },
-      "points": {
-        "Kamil": 0,
-        "Piotrek": 1,
-        "Kubuś": 1,
-        "Dzik": 1,
-        "Krzyś": 0,
-        "Lewy": 1,
-        "Krzysztof": 1,
-        "Dec": 1,
-        "Ćwieku": 1,
-        "Sapcio": 1
-      }
-    },
-    {
-      "round": 1,
-      "competition": "Ekstraklasa",
-      "home": "Górnik Zabrze",
-      "away": "Wisła Kraków",
-      "homeScore": 2,
-      "awayScore": 1,
-      "predictions": {
-        "Kamil": "2:1",
-        "Piotrek": "2:2",
-        "Kubuś": "1:1",
-        "Dzik": "2:1",
-        "Krzyś": "2:1",
-        "Lewy": "1:2",
-        "Krzysztof": "3:1",
-        "Dec": "2:1",
-        "Ćwieku": "2:1",
-        "Sapcio": "2:1"
-      },
-      "points": {
-        "Kamil": 3,
-        "Piotrek": 0,
-        "Kubuś": 0,
-        "Dzik": 3,
-        "Krzyś": 3,
-        "Lewy": 0,
-        "Krzysztof": 1,
-        "Dec": 3,
-        "Ćwieku": 3,
-        "Sapcio": 3
-      }
-    },
-    {
-      "round": 1,
-      "competition": "Premier League",
-      "home": "Hull",
-      "away": "Manchester Utd",
-      "homeScore": null,
-      "awayScore": null,
-      "predictions": {
-        "Kamil": null,
-        "Piotrek": null,
-        "Kubuś": null,
-        "Dzik": null,
-        "Krzyś": null,
-        "Lewy": null,
-        "Krzysztof": null,
-        "Dec": null,
-        "Ćwieku": null,
-        "Sapcio": null
-      },
-      "points": {
-        "Kamil": 0,
-        "Piotrek": 0,
-        "Kubuś": 0,
-        "Dzik": 0,
-        "Krzyś": 0,
-        "Lewy": 0,
-        "Krzysztof": 0,
-        "Dec": 0,
-        "Ćwieku": 0,
-        "Sapcio": 0
-      }
-    },
-    {
-      "round": 1,
-      "competition": "Premier League",
-      "home": "Newcastle",
-      "away": "Liverpool",
-      "homeScore": null,
-      "awayScore": null,
-      "predictions": {
-        "Kamil": null,
-        "Piotrek": null,
-        "Kubuś": null,
-        "Dzik": null,
-        "Krzyś": null,
-        "Lewy": null,
-        "Krzysztof": null,
-        "Dec": null,
-        "Ćwieku": null,
-        "Sapcio": null
-      },
-      "points": {
-        "Kamil": 0,
-        "Piotrek": 0,
-        "Kubuś": 0,
-        "Dzik": 0,
-        "Krzyś": 0,
-        "Lewy": 0,
-        "Krzysztof": 0,
-        "Dec": 0,
-        "Ćwieku": 0,
-        "Sapcio": 0
-      }
-    },
-    {
-      "round": 1,
-      "competition": "La Liga",
-      "home": "Ath. Bilbao",
-      "away": "Sevilla",
-      "homeScore": null,
-      "awayScore": null,
-      "predictions": {
-        "Kamil": null,
-        "Piotrek": null,
-        "Kubuś": null,
-        "Dzik": null,
-        "Krzyś": null,
-        "Lewy": null,
-        "Krzysztof": null,
-        "Dec": null,
-        "Ćwieku": null,
-        "Sapcio": null
-      },
-      "points": {
-        "Kamil": 0,
-        "Piotrek": 0,
-        "Kubuś": 0,
-        "Dzik": 0,
-        "Krzyś": 0,
-        "Lewy": 0,
-        "Krzysztof": 0,
-        "Dec": 0,
-        "Ćwieku": 0,
-        "Sapcio": 0
-      }
-    },
-    {
-      "round": 1,
-      "competition": "La Liga",
-      "home": "Getafe",
-      "away": "Racing Santander",
-      "homeScore": null,
-      "awayScore": null,
-      "predictions": {
-        "Kamil": null,
-        "Piotrek": null,
-        "Kubuś": null,
-        "Dzik": null,
-        "Krzyś": null,
-        "Lewy": null,
-        "Krzysztof": null,
-        "Dec": null,
-        "Ćwieku": null,
-        "Sapcio": null
-      },
-      "points": {
-        "Kamil": 0,
-        "Piotrek": 0,
-        "Kubuś": 0,
-        "Dzik": 0,
-        "Krzyś": 0,
-        "Lewy": 0,
-        "Krzysztof": 0,
-        "Dec": 0,
-        "Ćwieku": 0,
-        "Sapcio": 0
-      }
-    },
-    {
-      "round": 1,
-      "competition": "Serie A",
-      "home": "Inter",
-      "away": "Monza",
-      "homeScore": null,
-      "awayScore": null,
-      "predictions": {
-        "Kamil": null,
-        "Piotrek": null,
-        "Kubuś": null,
-        "Dzik": null,
-        "Krzyś": null,
-        "Lewy": null,
-        "Krzysztof": null,
-        "Dec": null,
-        "Ćwieku": null,
-        "Sapcio": null
-      },
-      "points": {
-        "Kamil": 0,
-        "Piotrek": 0,
-        "Kubuś": 0,
-        "Dzik": 0,
-        "Krzyś": 0,
-        "Lewy": 0,
-        "Krzysztof": 0,
-        "Dec": 0,
-        "Ćwieku": 0,
-        "Sapcio": 0
-      }
-    },
-    {
-      "round": 1,
-      "competition": "Serie A",
-      "home": "Torino",
-      "away": "AC Milan",
-      "homeScore": null,
-      "awayScore": null,
-      "predictions": {
-        "Kamil": null,
-        "Piotrek": null,
-        "Kubuś": null,
-        "Dzik": null,
-        "Krzyś": null,
-        "Lewy": null,
-        "Krzysztof": null,
-        "Dec": null,
-        "Ćwieku": null,
-        "Sapcio": null
-      },
-      "points": {
-        "Kamil": 0,
-        "Piotrek": 0,
-        "Kubuś": 0,
-        "Dzik": 0,
-        "Krzyś": 0,
-        "Lewy": 0,
-        "Krzysztof": 0,
-        "Dec": 0,
-        "Ćwieku": 0,
-        "Sapcio": 0
-      }
-    },
-    {
-      "round": 1,
-      "competition": "Ekstraklasa",
-      "home": "Śląsk Wrocław",
-      "away": "Widzew Łódź",
-      "homeScore": null,
-      "awayScore": null,
-      "predictions": {
-        "Kamil": null,
-        "Piotrek": null,
-        "Kubuś": null,
-        "Dzik": null,
-        "Krzyś": null,
-        "Lewy": null,
-        "Krzysztof": null,
-        "Dec": null,
-        "Ćwieku": null,
-        "Sapcio": null
-      },
-      "points": {
-        "Kamil": 0,
-        "Piotrek": 0,
-        "Kubuś": 0,
-        "Dzik": 0,
-        "Krzyś": 0,
-        "Lewy": 0,
-        "Krzysztof": 0,
-        "Dec": 0,
-        "Ćwieku": 0,
-        "Sapcio": 0
-      }
-    },
-    {
-      "round": 1,
-      "competition": "La Liga",
-      "home": "Atl. Madryt",
-      "away": "Villarreal",
-      "homeScore": null,
-      "awayScore": null,
-      "predictions": {
-        "Kamil": null,
-        "Piotrek": null,
-        "Kubuś": null,
-        "Dzik": null,
-        "Krzyś": null,
-        "Lewy": null,
-        "Krzysztof": null,
-        "Dec": null,
-        "Ćwieku": null,
-        "Sapcio": null
-      },
-      "points": {
-        "Kamil": 0,
-        "Piotrek": 0,
-        "Kubuś": 0,
-        "Dzik": 0,
-        "Krzyś": 0,
-        "Lewy": 0,
-        "Krzysztof": 0,
-        "Dec": 0,
-        "Ćwieku": 0,
-        "Sapcio": 0
-      }
+  }
+
+  return started;
+}
+
+/*
+ * Zasłanianie typów.
+ *
+ * Zawodnicy zaczynają się
+ * od kolumny O, indeks 14.
+ *
+ * Każdy zawodnik zajmuje
+ * blok 4 kolumn.
+ */
+function protectTT(
+  ttRows,
+  startMap,
+  currentPlayer,
+  isAdmin
+) {
+  if (
+    !Array.isArray(
+      ttRows
+    )
+  ) {
+    return [];
+  }
+
+  /*
+   * Administrator widzi wszystko.
+   */
+  if (isAdmin) {
+    return ttRows;
+  }
+
+  const now =
+    getWarsawNowNumber();
+
+  const protectedRows =
+    ttRows.map(
+      row =>
+        Array.isArray(row)
+          ? [...row]
+          : []
+    );
+
+  const header =
+    protectedRows[0] ||
+    [];
+
+  const playerColumns =
+    [];
+
+  for (
+    let c = 14;
+    c <= 50;
+    c += 4
+  ) {
+    const name =
+      String(
+        header[c] ||
+        ""
+      ).trim();
+
+    if (name) {
+      playerColumns.push({
+        column: c,
+        name
+      });
     }
-  ],
-  "matchPlayers": [
-    "Kamil",
-    "Piotrek",
-    "Kubuś",
-    "Dzik",
-    "Krzyś",
-    "Lewy",
-    "Krzysztof",
-    "Dec",
-    "Ćwieku",
-    "Sapcio"
-  ],
-  "msPlayers": [
-    "Kamil",
-    "Piotrek",
-    "Kubuś",
-    "Dzik",
-    "Krzyś",
-    "Lewy",
-    "Krzysztof",
-    "Dec",
-    "Ćwieku",
-    "Sapcio"
-  ],
-  "msRows": [
-    {
-      "league": "Premier League",
-      "type": "Mistrz",
-      "picks": {
-        "Kamil": "—",
-        "Piotrek": "—",
-        "Kubuś": "—",
-        "Dzik": "—",
-        "Krzyś": "—",
-        "Lewy": "—",
-        "Krzysztof": "—",
-        "Dec": "—",
-        "Ćwieku": "—",
-        "Sapcio": "—"
-      }
-    },
-    {
-      "league": "Premier League",
-      "type": "Spadkowicz",
-      "picks": {
-        "Kamil": "—",
-        "Piotrek": "—",
-        "Kubuś": "—",
-        "Dzik": "—",
-        "Krzyś": "—",
-        "Lewy": "—",
-        "Krzysztof": "—",
-        "Dec": "—",
-        "Ćwieku": "—",
-        "Sapcio": "—"
-      }
-    },
-    {
-      "league": "Premier League",
-      "type": "Spadkowicz",
-      "picks": {
-        "Kamil": "—",
-        "Piotrek": "—",
-        "Kubuś": "—",
-        "Dzik": "—",
-        "Krzyś": "—",
-        "Lewy": "—",
-        "Krzysztof": "—",
-        "Dec": "—",
-        "Ćwieku": "—",
-        "Sapcio": "—"
-      }
-    },
-    {
-      "league": "La Liga",
-      "type": "Mistrz",
-      "picks": {
-        "Kamil": "Real Madryt",
-        "Piotrek": "Atl. Madryt",
-        "Kubuś": "Barcelona",
-        "Dzik": "Barcelona",
-        "Krzyś": "Real Madryt",
-        "Lewy": "Real Madryt",
-        "Krzysztof": "Real Madryt",
-        "Dec": "Real Madryt",
-        "Ćwieku": "Real Madryt",
-        "Sapcio": "Barcelona"
-      }
-    },
-    {
-      "league": "La Liga",
-      "type": "Spadkowicz",
-      "picks": {
-        "Kamil": "Deportivo La Coruna",
-        "Piotrek": "Racing Santander",
-        "Kubuś": "Alaves",
-        "Dzik": "Racing Santander",
-        "Krzyś": "Malaga",
-        "Lewy": "Racing Santander",
-        "Krzysztof": "Malga",
-        "Dec": "Racing Santander",
-        "Ćwieku": "Levante",
-        "Sapcio": "Racing Santander"
-      }
-    },
-    {
-      "league": "La Liga",
-      "type": "Spadkowicz",
-      "picks": {
-        "Kamil": "Elche",
-        "Piotrek": "Levante",
-        "Kubuś": "Elche",
-        "Dzik": "Elche",
-        "Krzyś": "Elche",
-        "Lewy": "Elche",
-        "Krzysztof": "Elche",
-        "Dec": "Elche",
-        "Ćwieku": "Elche",
-        "Sapcio": "Malaga"
-      }
-    },
-    {
-      "league": "Bundesliga",
-      "type": "Mistrz",
-      "picks": {
-        "Kamil": "—",
-        "Piotrek": "—",
-        "Kubuś": "—",
-        "Dzik": "—",
-        "Krzyś": "—",
-        "Lewy": "—",
-        "Krzysztof": "—",
-        "Dec": "—",
-        "Ćwieku": "—",
-        "Sapcio": "—"
-      }
-    },
-    {
-      "league": "Bundesliga",
-      "type": "Spadkowicz",
-      "picks": {
-        "Kamil": "—",
-        "Piotrek": "—",
-        "Kubuś": "—",
-        "Dzik": "—",
-        "Krzyś": "—",
-        "Lewy": "—",
-        "Krzysztof": "—",
-        "Dec": "—",
-        "Ćwieku": "—",
-        "Sapcio": "—"
-      }
-    },
-    {
-      "league": "Bundesliga",
-      "type": "Spadkowicz",
-      "picks": {
-        "Kamil": "—",
-        "Piotrek": "—",
-        "Kubuś": "—",
-        "Dzik": "—",
-        "Krzyś": "—",
-        "Lewy": "—",
-        "Krzysztof": "—",
-        "Dec": "—",
-        "Ćwieku": "—",
-        "Sapcio": "—"
-      }
-    },
-    {
-      "league": "Serie A",
-      "type": "Mistrz",
-      "picks": {
-        "Kamil": "—",
-        "Piotrek": "—",
-        "Kubuś": "—",
-        "Dzik": "—",
-        "Krzyś": "—",
-        "Lewy": "—",
-        "Krzysztof": "—",
-        "Dec": "—",
-        "Ćwieku": "—",
-        "Sapcio": "—"
-      }
-    },
-    {
-      "league": "Serie A",
-      "type": "Spadkowicz",
-      "picks": {
-        "Kamil": "—",
-        "Piotrek": "—",
-        "Kubuś": "—",
-        "Dzik": "—",
-        "Krzyś": "—",
-        "Lewy": "—",
-        "Krzysztof": "—",
-        "Dec": "—",
-        "Ćwieku": "—",
-        "Sapcio": "—"
-      }
-    },
-    {
-      "league": "Serie A",
-      "type": "Spadkowicz",
-      "picks": {
-        "Kamil": "—",
-        "Piotrek": "—",
-        "Kubuś": "—",
-        "Dzik": "—",
-        "Krzyś": "—",
-        "Lewy": "—",
-        "Krzysztof": "—",
-        "Dec": "—",
-        "Ćwieku": "—",
-        "Sapcio": "—"
-      }
-    },
-    {
-      "league": "Liga Mistrzów",
-      "type": "Mistrz",
-      "picks": {
-        "Kamil": "—",
-        "Piotrek": "—",
-        "Kubuś": "—",
-        "Dzik": "—",
-        "Krzyś": "—",
-        "Lewy": "—",
-        "Krzysztof": "—",
-        "Dec": "—",
-        "Ćwieku": "—",
-        "Sapcio": "—"
-      }
-    },
-    {
-      "league": "Liga Europy",
-      "type": "Mistrz",
-      "picks": {
-        "Kamil": "—",
-        "Piotrek": "—",
-        "Kubuś": "—",
-        "Dzik": "—",
-        "Krzyś": "—",
-        "Lewy": "—",
-        "Krzysztof": "—",
-        "Dec": "—",
-        "Ćwieku": "—",
-        "Sapcio": "—"
-      }
-    },
-    {
-      "league": "Ekstraklasa",
-      "type": "Mistrz",
-      "picks": {
-        "Kamil": "Lech Poznań",
-        "Piotrek": "Legia Warszawa",
-        "Kubuś": "Lech Poznań",
-        "Dzik": "Legia Warszawa",
-        "Krzyś": "Legia Warszawa",
-        "Lewy": "Lech Poznań",
-        "Krzysztof": "Legia Warszawa",
-        "Dec": "Lech Poznań",
-        "Ćwieku": "Legia Warszawa",
-        "Sapcio": "Lech Poznań"
-      }
-    },
-    {
-      "league": "Ekstraklasa",
-      "type": "Spadkowicz",
-      "picks": {
-        "Kamil": "Wieczysta Kraków",
-        "Piotrek": "Korona Kielce",
-        "Kubuś": "Wieczysta Kraków",
-        "Dzik": "Radomiak",
-        "Krzyś": "Korona Kielce",
-        "Lewy": "Wisła Płock",
-        "Krzysztof": "Motor Lublin",
-        "Dec": "Zagłębie Lubin",
-        "Ćwieku": "Radomiak",
-        "Sapcio": "Wieczysta Kraków"
-      }
-    },
-    {
-      "league": "Ekstraklasa",
-      "type": "Spadkowicz",
-      "picks": {
-        "Kamil": "Radomiak",
-        "Piotrek": "Piast Gliwice",
-        "Kubuś": "Widzew Łódź",
-        "Dzik": "Wisła Płock",
-        "Krzyś": "Widzew Łódź",
-        "Lewy": "Zagłębie Lubin",
-        "Krzysztof": "Cracovia",
-        "Dec": "Radomiak",
-        "Ćwieku": "Piast Gliwice",
-        "Sapcio": "Zagłęcie Lubin"
-      }
+  }
+
+  const currentNormalized =
+    normalizeName(
+      currentPlayer
+    );
+
+  const startedFromResults =
+    buildStartedSegmentsFromTT(
+      ttRows
+    );
+
+  for (
+    let r = 2;
+    r <
+      protectedRows.length;
+    r++
+  ) {
+    const row =
+      protectedRows[r];
+
+    const segment =
+      normalizeSegment(
+        row[2]
+      );
+
+    if (!segment) {
+      continue;
     }
-  ],
-  "bobrTable": [
-    {
-      "pos": 1,
-      "name": "Krzysztof",
-      "bobry": 1
-    },
-    {
-      "pos": 2,
-      "name": "Dzik",
-      "bobry": 0
-    },
-    {
-      "pos": 3,
-      "name": "Dec",
-      "bobry": 0
-    },
-    {
-      "pos": 4,
-      "name": "Ćwieku",
-      "bobry": 0
-    },
-    {
-      "pos": 5,
-      "name": "Sapcio",
-      "bobry": 0
-    },
-    {
-      "pos": 6,
-      "name": "Kamil",
-      "bobry": 0
-    },
-    {
-      "pos": 7,
-      "name": "Krzyś",
-      "bobry": 0
-    },
-    {
-      "pos": 8,
-      "name": "Kubuś",
-      "bobry": 0
-    },
-    {
-      "pos": 9,
-      "name": "Piotrek",
-      "bobry": 0
-    },
-    {
-      "pos": 10,
-      "name": "Lewy",
-      "bobry": 0
+
+    const scheduledStart =
+      startMap.get(
+        segment
+      );
+
+    let unlocked =
+      false;
+
+    /*
+     * Jeśli część jest wpisana
+     * do WWW_KOLEJKI,
+     * decyduje data START.
+     */
+    if (
+      scheduledStart !==
+      undefined
+    ) {
+      unlocked =
+        now >=
+        scheduledStart;
     }
-  ],
-  "bobrHistory": [
-    {
-      "round": 1,
-      "winner": "Krzysztof",
-      "pts": 5,
-      "three": 1,
-      "two": 0,
-      "one": 2,
-      "tie": false
+
+    /*
+     * Jeśli nie ma jej
+     * w WWW_KOLEJKI,
+     * ale ma już wynik,
+     * uznajemy ją za rozpoczętą.
+     */
+    else if (
+      startedFromResults.has(
+        segment
+      )
+    ) {
+      unlocked =
+        true;
     }
-  ]
+
+    /*
+     * Jeśli część jest już
+     * odblokowana, niczego
+     * nie zasłaniamy.
+     */
+    if (unlocked) {
+      continue;
+    }
+
+    /*
+     * Przed startem
+     * zasłaniamy cudze typy.
+     */
+    for (
+      const player
+      of playerColumns
+    ) {
+      const playerNormalized =
+        normalizeName(
+          player.name
+        );
+
+      /*
+       * Własny typ pozostaje
+       * widoczny.
+       */
+      if (
+        currentNormalized &&
+        playerNormalized ===
+          currentNormalized
+      ) {
+        continue;
+      }
+
+      const c =
+        player.column;
+
+      row[c] = null;
+      row[c + 1] = null;
+      row[c + 2] = null;
+      row[c + 3] = null;
+    }
+  }
+
+  return protectedRows;
+}
+
+export async function onRequestGet(
+  context
+) {
+  try {
+    const access =
+      await verifyCloudflareAccess(
+        context.request,
+        context.env
+      );
+
+    const email =
+      String(
+        access.email || ""
+      )
+        .trim()
+        .toLowerCase();
+
+    const adminEmail =
+      String(
+        context.env
+          .ADMIN_EMAIL ||
+        ""
+      )
+        .trim()
+        .toLowerCase();
+
+    const isAdmin =
+      !!email &&
+      !!adminEmail &&
+      email ===
+        adminEmail;
+
+    const token =
+      await getGoogleAccessToken(
+        context.env
+      );
+
+    const [
+      generalka,
+      tabelaKolejki,
+      ms,
+      ttRaw,
+      aktualnosci,
+      uzytkownicy,
+      kolejki
+    ] =
+      await Promise.all([
+        getSheetRange(
+          context.env,
+          token,
+          "GENERALKA!A1:I20"
+        ),
+
+        getSheetRange(
+          context.env,
+          token,
+          "'TABELA KOLEJKI'!A1:H20"
+        ),
+
+        getSheetRange(
+          context.env,
+          token,
+          "'M&S'!A1:AT30"
+        ),
+
+        getSheetRange(
+          context.env,
+          token,
+          "TT!A1:BG600"
+        ),
+
+        getSheetRange(
+          context.env,
+          token,
+          "'WWW_AKTUALNOSCI'!A1:F200",
+          "FORMATTED_VALUE"
+        ),
+
+        getSheetRange(
+          context.env,
+          token,
+          "'WWW_UZYTKOWNICY'!A1:C100",
+          "FORMATTED_VALUE"
+        ),
+
+        getSheetRange(
+          context.env,
+          token,
+          "'WWW_KOLEJKI'!A1:B200",
+          "FORMATTED_VALUE"
+        )
+      ]);
+
+    const currentPlayer =
+      findLoggedInPlayer(
+        uzytkownicy,
+        email
+      );
+
+    const startMap =
+      buildStartMap(
+        kolejki
+      );
+
+    const tt =
+      protectTT(
+        ttRaw,
+        startMap,
+        currentPlayer,
+        isAdmin
+      );
+
+    return Response.json(
+      {
+        ok: true,
+
+        timestamp:
+          new Date()
+            .toISOString(),
+
+        privacy: {
+          player:
+            currentPlayer ||
+            null,
+
+          isAdmin,
+
+          scheduleEntries:
+            startMap.size
+        },
+
+        sheets: {
+          GENERALKA:
+            generalka,
+
+          TABELA_KOLEJKI:
+            tabelaKolejki,
+
+          MS:
+            ms,
+
+          TT:
+            tt,
+
+          AKTUALNOSCI:
+            aktualnosci
+        }
+      },
+      {
+        headers: {
+          "Cache-Control":
+            "private, no-store, no-cache, must-revalidate"
+        }
+      }
+    );
+  } catch (error) {
+    return Response.json(
+      {
+        ok: false,
+
+        error:
+          error instanceof Error
+            ? error.message
+            : String(error)
+      },
+      {
+        status: 500,
+
+        headers: {
+          "Cache-Control":
+            "no-store"
+        }
+      }
+    );
+  }
 }
