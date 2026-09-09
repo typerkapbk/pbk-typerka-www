@@ -404,6 +404,18 @@ async function getSheetRange(
   return result.values || [];
 }
 
+/*
+ * Obsługiwane formaty daty:
+ *
+ * 2026-09-08 21:00:00
+ * 2026-09-08 21:00
+ *
+ * oraz:
+ *
+ * 08.09.2026 21:00
+ * 08-09-2026 21:00
+ * 08/09/2026 21:00
+ */
 function parsePolishDateTime(
   value
 ) {
@@ -541,6 +553,12 @@ function getWarsawNowNumber() {
   );
 }
 
+/*
+ * WWW_KOLEJKI
+ *
+ * A = KOLEJKA
+ * B = START
+ */
 function buildStartMap(
   rows
 ) {
@@ -583,6 +601,13 @@ function buildStartMap(
   return map;
 }
 
+/*
+ * WWW_UZYTKOWNICY
+ *
+ * A = EMAIL
+ * B = NAZWA
+ * C = AKTYWNY
+ */
 function findLoggedInPlayer(
   rows,
   email
@@ -671,6 +696,16 @@ function scoreExists(
   );
 }
 
+/*
+ * Jeżeli choć jeden mecz
+ * danej części ma wpisany wynik,
+ * część uznajemy za rozpoczętą.
+ *
+ * TT:
+ * C = kolejka / część
+ * G = gole gospodarzy
+ * I = gole gości
+ */
 function buildStartedSegmentsFromTT(
   ttRows
 ) {
@@ -721,6 +756,15 @@ function buildStartedSegmentsFromTT(
   return started;
 }
 
+/*
+ * Zasłanianie typów.
+ *
+ * Zawodnicy zaczynają się
+ * od kolumny O, indeks 14.
+ *
+ * Każdy zawodnik zajmuje
+ * blok 4 kolumn.
+ */
 function protectTT(
   ttRows,
   startMap,
@@ -735,6 +779,9 @@ function protectTT(
     return [];
   }
 
+  /*
+   * Administrator widzi wszystko.
+   */
   if (isAdmin) {
     return ttRows;
   }
@@ -812,6 +859,11 @@ function protectTT(
     let unlocked =
       false;
 
+    /*
+     * Jeżeli część ma wpis
+     * w WWW_KOLEJKI,
+     * decyduje ustawiona data START.
+     */
     if (
       scheduledStart !==
       undefined
@@ -821,6 +873,11 @@ function protectTT(
         scheduledStart;
     }
 
+    /*
+     * Jeśli nie ma daty w WWW_KOLEJKI,
+     * ale choć jeden mecz tej części
+     * ma już wynik, odsłaniamy typy.
+     */
     else if (
       startedFromResults.has(
         segment
@@ -834,6 +891,10 @@ function protectTT(
       continue;
     }
 
+    /*
+     * Przed startem ukrywamy
+     * cudze typy.
+     */
     for (
       const player
       of playerColumns
@@ -843,6 +904,9 @@ function protectTT(
           player.name
         );
 
+      /*
+       * Własny typ pozostaje widoczny.
+       */
       if (
         currentNormalized &&
         playerNormalized ===
@@ -992,15 +1056,7 @@ export async function onRequestGet(
           isAdmin,
 
           scheduleEntries:
-            startMap.size,
-
-          scheduleRaw:
-            kolejki,
-
-          scheduleParsed:
-            Array.from(
-              startMap.entries()
-            )
+            startMap.size
         },
 
         sheets: {
