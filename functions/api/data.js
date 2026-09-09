@@ -165,7 +165,8 @@ async function verifyCloudflareAccess(
       {
         name:
           "RSASSA-PKCS1-v1_5",
-        hash: "SHA-256"
+        hash:
+          "SHA-256"
       },
       false,
       ["verify"]
@@ -400,20 +401,9 @@ async function getSheetRange(
     );
   }
 
-  return (
-    result.values || []
-  );
+  return result.values || [];
 }
 
-/*
- * Zamiana polskiej daty:
- *
- * 08.09.2026 20:45
- *
- * na wartość liczbową:
- *
- * 202609082045
- */
 function parsePolishDateTime(
   value
 ) {
@@ -426,41 +416,71 @@ function parsePolishDateTime(
     return null;
   }
 
-  const match =
+  let match =
+    text.match(
+      /^(\d{4})-(\d{1,2})-(\d{1,2})[ T](\d{1,2}):(\d{2})(?::(\d{2}))?/
+    );
+
+  if (match) {
+    const year =
+      Number(match[1]);
+
+    const month =
+      Number(match[2]);
+
+    const day =
+      Number(match[3]);
+
+    const hour =
+      Number(match[4]);
+
+    const minute =
+      Number(match[5]);
+
+    return (
+      year * 100000000 +
+      month * 1000000 +
+      day * 10000 +
+      hour * 100 +
+      minute
+    );
+  }
+
+  match =
     text.match(
       /^(\d{1,2})[.\-/](\d{1,2})[.\-/](\d{4})(?:\s+(\d{1,2}):(\d{2}))?/
     );
 
-  if (!match) {
-    return null;
+  if (match) {
+    const day =
+      Number(match[1]);
+
+    const month =
+      Number(match[2]);
+
+    const year =
+      Number(match[3]);
+
+    const hour =
+      Number(
+        match[4] || 0
+      );
+
+    const minute =
+      Number(
+        match[5] || 0
+      );
+
+    return (
+      year * 100000000 +
+      month * 1000000 +
+      day * 10000 +
+      hour * 100 +
+      minute
+    );
   }
 
-  const day =
-    Number(match[1]);
-
-  const month =
-    Number(match[2]);
-
-  const year =
-    Number(match[3]);
-
-  const hour =
-    Number(
-      match[4] || 0
-    );
-
-  const minute =
-    Number(
-      match[5] || 0
-    );
-
-  return (
-    year * 100000000 +
-    month * 1000000 +
-    day * 10000 +
-    hour * 100 +
-    minute
-  );
+  return null;
 }
 
 function getWarsawNowNumber() {
@@ -521,12 +541,6 @@ function getWarsawNowNumber() {
   );
 }
 
-/*
- * WWW_KOLEJKI
- *
- * A = KOLEJKA
- * B = START
- */
 function buildStartMap(
   rows
 ) {
@@ -569,13 +583,6 @@ function buildStartMap(
   return map;
 }
 
-/*
- * WWW_UZYTKOWNICY
- *
- * A = EMAIL
- * B = NAZWA
- * C = AKTYWNY
- */
 function findLoggedInPlayer(
   rows,
   email
@@ -645,7 +652,9 @@ function findLoggedInPlayer(
   return "";
 }
 
-function scoreExists(value) {
+function scoreExists(
+  value
+) {
   if (
     value === null ||
     value === undefined ||
@@ -662,21 +671,6 @@ function scoreExists(value) {
   );
 }
 
-/*
- * Sprawdzamy, które segmenty
- * na pewno już się rozpoczęły
- * na podstawie wpisanych wyników.
- *
- * TT:
- *
- * C = kolejka / segment
- * G = gole gospodarzy
- * I = gole gości
- *
- * Jeżeli choć jeden mecz
- * danego segmentu ma wynik,
- * segment uznajemy za rozpoczęty.
- */
 function buildStartedSegmentsFromTT(
   ttRows
 ) {
@@ -727,15 +721,6 @@ function buildStartedSegmentsFromTT(
   return started;
 }
 
-/*
- * Zasłanianie typów.
- *
- * Zawodnicy zaczynają się
- * od kolumny O, indeks 14.
- *
- * Każdy zawodnik zajmuje
- * blok 4 kolumn.
- */
 function protectTT(
   ttRows,
   startMap,
@@ -750,10 +735,6 @@ function protectTT(
     return [];
   }
 
-  /*
-   * Administrator ma dostęp
-   * do wszystkiego.
-   */
   if (isAdmin) {
     return ttRows;
   }
@@ -800,14 +781,6 @@ function protectTT(
       currentPlayer
     );
 
-  /*
-   * Dla starych kolejek,
-   * których nie wpisaliśmy jeszcze
-   * do WWW_KOLEJKI, możemy
-   * rozpoznać start po tym,
-   * że pojawił się już wynik
-   * choć jednego meczu.
-   */
   const startedFromResults =
     buildStartedSegmentsFromTT(
       ttRows
@@ -839,11 +812,6 @@ function protectTT(
     let unlocked =
       false;
 
-    /*
-     * Jeśli segment jest wpisany
-     * w WWW_KOLEJKI, decyduje
-     * ustawiona tam data.
-     */
     if (
       scheduledStart !==
       undefined
@@ -853,25 +821,15 @@ function protectTT(
         scheduledStart;
     }
 
-    /*
-     * Jeśli nie ma go jeszcze
-     * w WWW_KOLEJKI, ale segment
-     * ma już wpisany wynik,
-     * traktujemy go jako rozpoczęty.
-     */
     else if (
       startedFromResults.has(
         segment
       )
     ) {
-      unlocked = true;
+      unlocked =
+        true;
     }
 
-    /*
-     * Brak daty oraz brak
-     * rozpoczętego meczu =
-     * pozostaje zamknięte.
-     */
     if (unlocked) {
       continue;
     }
@@ -885,10 +843,6 @@ function protectTT(
           player.name
         );
 
-      /*
-       * Własnych typów
-       * nie zasłaniamy.
-       */
       if (
         currentNormalized &&
         playerNormalized ===
@@ -1038,7 +992,15 @@ export async function onRequestGet(
           isAdmin,
 
           scheduleEntries:
-            startMap.size
+            startMap.size,
+
+          scheduleRaw:
+            kolejki,
+
+          scheduleParsed:
+            Array.from(
+              startMap.entries()
+            )
         },
 
         sheets: {
