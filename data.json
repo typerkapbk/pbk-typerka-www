@@ -1,0 +1,1249 @@
+{
+  "season": "2026/2027",
+  "round": 1,
+  "general": [
+    {
+      "pos": 1,
+      "name": "Krzysztof",
+      "pts": 5,
+      "three": 1,
+      "two": 0,
+      "one": 2
+    },
+    {
+      "pos": 2,
+      "name": "Dzik",
+      "pts": 4,
+      "three": 1,
+      "two": 0,
+      "one": 1
+    },
+    {
+      "pos": 3,
+      "name": "Dec",
+      "pts": 4,
+      "three": 1,
+      "two": 0,
+      "one": 1
+    },
+    {
+      "pos": 4,
+      "name": "Ćwieku",
+      "pts": 4,
+      "three": 1,
+      "two": 0,
+      "one": 1
+    },
+    {
+      "pos": 5,
+      "name": "Sapcio",
+      "pts": 4,
+      "three": 1,
+      "two": 0,
+      "one": 1
+    },
+    {
+      "pos": 6,
+      "name": "Kamil",
+      "pts": 3,
+      "three": 1,
+      "two": 0,
+      "one": 0
+    },
+    {
+      "pos": 7,
+      "name": "Krzyś",
+      "pts": 3,
+      "three": 1,
+      "two": 0,
+      "one": 0
+    },
+    {
+      "pos": 8,
+      "name": "Kubuś",
+      "pts": 3,
+      "three": 0,
+      "two": 1,
+      "one": 1
+    },
+    {
+      "pos": 9,
+      "name": "Piotrek",
+      "pts": 1,
+      "three": 0,
+      "two": 0,
+      "one": 1
+    },
+    {
+      "pos": 10,
+      "name": "Lewy",
+      "pts": 1,
+      "three": 0,
+      "two": 0,
+      "one": 1
+    }
+  ],
+  "roundTable": [
+    {
+      "pos": 1,
+      "name": "Krzysztof",
+      "pts": 5,
+      "three": 1,
+      "two": 0,
+      "one": 2,
+      "avg": 0.45454545454545453
+    },
+    {
+      "pos": 2,
+      "name": "Dzik",
+      "pts": 4,
+      "three": 1,
+      "two": 0,
+      "one": 1,
+      "avg": 0.36363636363636365
+    },
+    {
+      "pos": 3,
+      "name": "Dec",
+      "pts": 4,
+      "three": 1,
+      "two": 0,
+      "one": 1,
+      "avg": 0.36363636363636365
+    },
+    {
+      "pos": 4,
+      "name": "Ćwieku",
+      "pts": 4,
+      "three": 1,
+      "two": 0,
+      "one": 1,
+      "avg": 0.36363636363636365
+    },
+    {
+      "pos": 5,
+      "name": "Sapcio",
+      "pts": 4,
+      "three": 1,
+      "two": 0,
+      "one": 1,
+      "avg": 0.36363636363636365
+    },
+    {
+      "pos": 6,
+      "name": "Kamil",
+      "pts": 3,
+      "three": 1,
+      "two": 0,
+      "one": 0,
+      "avg": 0.2727272727272727
+    },
+    {
+      "pos": 7,
+      "name": "Krzyś",
+      "pts": 3,
+      "three": 1,
+      "two": 0,
+      "one": 0,
+      "avg": 0.2727272727272727
+    },
+    {
+      "pos": 8,
+      "name": "Kubuś",
+      "pts": 3,
+      "three": 0,
+      "two": 1,
+      "one": 1,
+      "avg": 0.2727272727272727
+    },
+    {
+      "pos": 9,
+      "name": "Piotrek",
+      "pts": 1,
+      "three": 0,
+      "two": 0,
+      "one": 1,
+      "avg": 0.09090909090909091
+    },
+    {
+      "pos": 10,
+      "name": "Lewy",
+      "pts": 1,
+      "three": 0,
+      "two": 0,
+      "one": 1,
+      "avg": 0.09090909090909091
+    }
+  ],
+  "recentMatches": [
+    {
+      "round": 1,
+      "competition": "La Liga",
+      "home": "Racing Santander",
+      "away": "Villarreal",
+      "homeScore": 2,
+      "awayScore": 2,
+      "predictions": {
+        "Kamil": "1:2",
+        "Piotrek": "1:2",
+        "Kubuś": "1:1",
+        "Dzik": "1:3",
+        "Krzyś": "1:2",
+        "Lewy": "1:2",
+        "Krzysztof": "2:2",
+        "Dec": "1:2",
+        "Ćwieku": "1:2",
+        "Sapcio": "1:2"
+      },
+      "points": {
+        "Kamil": 0,
+        "Piotrek": 0,
+        "Kubuś": 2,
+        "Dzik": 0,
+        "Krzyś": 0,
+        "Lewy": 0,
+        "Krzysztof": 3,
+        "Dec": 0,
+        "Ćwieku": 0,
+        "Sapcio": 0
+      }
+    },
+    {
+      "round": 1,
+      "competition": "La Liga",
+      "home": "Espanyol",
+      "away": "Levante",
+      "homeScore": 3,
+      "awayScore": 0,
+      "predictions": {
+        "Kamil": "1:1",
+        "Piotrek": "1:0",
+        "Kubuś": "2:1",
+        "Dzik": "1:0",
+        "Krzyś": "1:1",
+        "Lewy": "1:0",
+        "Krzysztof": "3:1",
+        "Dec": "1:0",
+        "Ćwieku": "2:0",
+        "Sapcio": "1:0"
+      },
+      "points": {
+        "Kamil": 0,
+        "Piotrek": 1,
+        "Kubuś": 1,
+        "Dzik": 1,
+        "Krzyś": 0,
+        "Lewy": 1,
+        "Krzysztof": 1,
+        "Dec": 1,
+        "Ćwieku": 1,
+        "Sapcio": 1
+      }
+    },
+    {
+      "round": 1,
+      "competition": "Ekstraklasa",
+      "home": "Górnik Zabrze",
+      "away": "Wisła Kraków",
+      "homeScore": 2,
+      "awayScore": 1,
+      "predictions": {
+        "Kamil": "2:1",
+        "Piotrek": "2:2",
+        "Kubuś": "1:1",
+        "Dzik": "2:1",
+        "Krzyś": "2:1",
+        "Lewy": "1:2",
+        "Krzysztof": "3:1",
+        "Dec": "2:1",
+        "Ćwieku": "2:1",
+        "Sapcio": "2:1"
+      },
+      "points": {
+        "Kamil": 3,
+        "Piotrek": 0,
+        "Kubuś": 0,
+        "Dzik": 3,
+        "Krzyś": 3,
+        "Lewy": 0,
+        "Krzysztof": 1,
+        "Dec": 3,
+        "Ćwieku": 3,
+        "Sapcio": 3
+      }
+    }
+  ],
+  "upcomingMatches": [
+    {
+      "round": 1,
+      "competition": "Premier League",
+      "home": "Hull",
+      "away": "Manchester Utd",
+      "homeScore": null,
+      "awayScore": null,
+      "predictions": {
+        "Kamil": null,
+        "Piotrek": null,
+        "Kubuś": null,
+        "Dzik": null,
+        "Krzyś": null,
+        "Lewy": null,
+        "Krzysztof": null,
+        "Dec": null,
+        "Ćwieku": null,
+        "Sapcio": null
+      },
+      "points": {
+        "Kamil": 0,
+        "Piotrek": 0,
+        "Kubuś": 0,
+        "Dzik": 0,
+        "Krzyś": 0,
+        "Lewy": 0,
+        "Krzysztof": 0,
+        "Dec": 0,
+        "Ćwieku": 0,
+        "Sapcio": 0
+      }
+    },
+    {
+      "round": 1,
+      "competition": "Premier League",
+      "home": "Newcastle",
+      "away": "Liverpool",
+      "homeScore": null,
+      "awayScore": null,
+      "predictions": {
+        "Kamil": null,
+        "Piotrek": null,
+        "Kubuś": null,
+        "Dzik": null,
+        "Krzyś": null,
+        "Lewy": null,
+        "Krzysztof": null,
+        "Dec": null,
+        "Ćwieku": null,
+        "Sapcio": null
+      },
+      "points": {
+        "Kamil": 0,
+        "Piotrek": 0,
+        "Kubuś": 0,
+        "Dzik": 0,
+        "Krzyś": 0,
+        "Lewy": 0,
+        "Krzysztof": 0,
+        "Dec": 0,
+        "Ćwieku": 0,
+        "Sapcio": 0
+      }
+    },
+    {
+      "round": 1,
+      "competition": "La Liga",
+      "home": "Ath. Bilbao",
+      "away": "Sevilla",
+      "homeScore": null,
+      "awayScore": null,
+      "predictions": {
+        "Kamil": null,
+        "Piotrek": null,
+        "Kubuś": null,
+        "Dzik": null,
+        "Krzyś": null,
+        "Lewy": null,
+        "Krzysztof": null,
+        "Dec": null,
+        "Ćwieku": null,
+        "Sapcio": null
+      },
+      "points": {
+        "Kamil": 0,
+        "Piotrek": 0,
+        "Kubuś": 0,
+        "Dzik": 0,
+        "Krzyś": 0,
+        "Lewy": 0,
+        "Krzysztof": 0,
+        "Dec": 0,
+        "Ćwieku": 0,
+        "Sapcio": 0
+      }
+    },
+    {
+      "round": 1,
+      "competition": "La Liga",
+      "home": "Getafe",
+      "away": "Racing Santander",
+      "homeScore": null,
+      "awayScore": null,
+      "predictions": {
+        "Kamil": null,
+        "Piotrek": null,
+        "Kubuś": null,
+        "Dzik": null,
+        "Krzyś": null,
+        "Lewy": null,
+        "Krzysztof": null,
+        "Dec": null,
+        "Ćwieku": null,
+        "Sapcio": null
+      },
+      "points": {
+        "Kamil": 0,
+        "Piotrek": 0,
+        "Kubuś": 0,
+        "Dzik": 0,
+        "Krzyś": 0,
+        "Lewy": 0,
+        "Krzysztof": 0,
+        "Dec": 0,
+        "Ćwieku": 0,
+        "Sapcio": 0
+      }
+    },
+    {
+      "round": 1,
+      "competition": "Serie A",
+      "home": "Inter",
+      "away": "Monza",
+      "homeScore": null,
+      "awayScore": null,
+      "predictions": {
+        "Kamil": null,
+        "Piotrek": null,
+        "Kubuś": null,
+        "Dzik": null,
+        "Krzyś": null,
+        "Lewy": null,
+        "Krzysztof": null,
+        "Dec": null,
+        "Ćwieku": null,
+        "Sapcio": null
+      },
+      "points": {
+        "Kamil": 0,
+        "Piotrek": 0,
+        "Kubuś": 0,
+        "Dzik": 0,
+        "Krzyś": 0,
+        "Lewy": 0,
+        "Krzysztof": 0,
+        "Dec": 0,
+        "Ćwieku": 0,
+        "Sapcio": 0
+      }
+    },
+    {
+      "round": 1,
+      "competition": "Serie A",
+      "home": "Torino",
+      "away": "AC Milan",
+      "homeScore": null,
+      "awayScore": null,
+      "predictions": {
+        "Kamil": null,
+        "Piotrek": null,
+        "Kubuś": null,
+        "Dzik": null,
+        "Krzyś": null,
+        "Lewy": null,
+        "Krzysztof": null,
+        "Dec": null,
+        "Ćwieku": null,
+        "Sapcio": null
+      },
+      "points": {
+        "Kamil": 0,
+        "Piotrek": 0,
+        "Kubuś": 0,
+        "Dzik": 0,
+        "Krzyś": 0,
+        "Lewy": 0,
+        "Krzysztof": 0,
+        "Dec": 0,
+        "Ćwieku": 0,
+        "Sapcio": 0
+      }
+    },
+    {
+      "round": 1,
+      "competition": "Ekstraklasa",
+      "home": "Śląsk Wrocław",
+      "away": "Widzew Łódź",
+      "homeScore": null,
+      "awayScore": null,
+      "predictions": {
+        "Kamil": null,
+        "Piotrek": null,
+        "Kubuś": null,
+        "Dzik": null,
+        "Krzyś": null,
+        "Lewy": null,
+        "Krzysztof": null,
+        "Dec": null,
+        "Ćwieku": null,
+        "Sapcio": null
+      },
+      "points": {
+        "Kamil": 0,
+        "Piotrek": 0,
+        "Kubuś": 0,
+        "Dzik": 0,
+        "Krzyś": 0,
+        "Lewy": 0,
+        "Krzysztof": 0,
+        "Dec": 0,
+        "Ćwieku": 0,
+        "Sapcio": 0
+      }
+    },
+    {
+      "round": 1,
+      "competition": "La Liga",
+      "home": "Atl. Madryt",
+      "away": "Villarreal",
+      "homeScore": null,
+      "awayScore": null,
+      "predictions": {
+        "Kamil": null,
+        "Piotrek": null,
+        "Kubuś": null,
+        "Dzik": null,
+        "Krzyś": null,
+        "Lewy": null,
+        "Krzysztof": null,
+        "Dec": null,
+        "Ćwieku": null,
+        "Sapcio": null
+      },
+      "points": {
+        "Kamil": 0,
+        "Piotrek": 0,
+        "Kubuś": 0,
+        "Dzik": 0,
+        "Krzyś": 0,
+        "Lewy": 0,
+        "Krzysztof": 0,
+        "Dec": 0,
+        "Ćwieku": 0,
+        "Sapcio": 0
+      }
+    }
+  ],
+  "matchDetails": [
+    {
+      "round": 1,
+      "competition": "La Liga",
+      "home": "Racing Santander",
+      "away": "Villarreal",
+      "homeScore": 2,
+      "awayScore": 2,
+      "predictions": {
+        "Kamil": "1:2",
+        "Piotrek": "1:2",
+        "Kubuś": "1:1",
+        "Dzik": "1:3",
+        "Krzyś": "1:2",
+        "Lewy": "1:2",
+        "Krzysztof": "2:2",
+        "Dec": "1:2",
+        "Ćwieku": "1:2",
+        "Sapcio": "1:2"
+      },
+      "points": {
+        "Kamil": 0,
+        "Piotrek": 0,
+        "Kubuś": 2,
+        "Dzik": 0,
+        "Krzyś": 0,
+        "Lewy": 0,
+        "Krzysztof": 3,
+        "Dec": 0,
+        "Ćwieku": 0,
+        "Sapcio": 0
+      }
+    },
+    {
+      "round": 1,
+      "competition": "La Liga",
+      "home": "Espanyol",
+      "away": "Levante",
+      "homeScore": 3,
+      "awayScore": 0,
+      "predictions": {
+        "Kamil": "1:1",
+        "Piotrek": "1:0",
+        "Kubuś": "2:1",
+        "Dzik": "1:0",
+        "Krzyś": "1:1",
+        "Lewy": "1:0",
+        "Krzysztof": "3:1",
+        "Dec": "1:0",
+        "Ćwieku": "2:0",
+        "Sapcio": "1:0"
+      },
+      "points": {
+        "Kamil": 0,
+        "Piotrek": 1,
+        "Kubuś": 1,
+        "Dzik": 1,
+        "Krzyś": 0,
+        "Lewy": 1,
+        "Krzysztof": 1,
+        "Dec": 1,
+        "Ćwieku": 1,
+        "Sapcio": 1
+      }
+    },
+    {
+      "round": 1,
+      "competition": "Ekstraklasa",
+      "home": "Górnik Zabrze",
+      "away": "Wisła Kraków",
+      "homeScore": 2,
+      "awayScore": 1,
+      "predictions": {
+        "Kamil": "2:1",
+        "Piotrek": "2:2",
+        "Kubuś": "1:1",
+        "Dzik": "2:1",
+        "Krzyś": "2:1",
+        "Lewy": "1:2",
+        "Krzysztof": "3:1",
+        "Dec": "2:1",
+        "Ćwieku": "2:1",
+        "Sapcio": "2:1"
+      },
+      "points": {
+        "Kamil": 3,
+        "Piotrek": 0,
+        "Kubuś": 0,
+        "Dzik": 3,
+        "Krzyś": 3,
+        "Lewy": 0,
+        "Krzysztof": 1,
+        "Dec": 3,
+        "Ćwieku": 3,
+        "Sapcio": 3
+      }
+    },
+    {
+      "round": 1,
+      "competition": "Premier League",
+      "home": "Hull",
+      "away": "Manchester Utd",
+      "homeScore": null,
+      "awayScore": null,
+      "predictions": {
+        "Kamil": null,
+        "Piotrek": null,
+        "Kubuś": null,
+        "Dzik": null,
+        "Krzyś": null,
+        "Lewy": null,
+        "Krzysztof": null,
+        "Dec": null,
+        "Ćwieku": null,
+        "Sapcio": null
+      },
+      "points": {
+        "Kamil": 0,
+        "Piotrek": 0,
+        "Kubuś": 0,
+        "Dzik": 0,
+        "Krzyś": 0,
+        "Lewy": 0,
+        "Krzysztof": 0,
+        "Dec": 0,
+        "Ćwieku": 0,
+        "Sapcio": 0
+      }
+    },
+    {
+      "round": 1,
+      "competition": "Premier League",
+      "home": "Newcastle",
+      "away": "Liverpool",
+      "homeScore": null,
+      "awayScore": null,
+      "predictions": {
+        "Kamil": null,
+        "Piotrek": null,
+        "Kubuś": null,
+        "Dzik": null,
+        "Krzyś": null,
+        "Lewy": null,
+        "Krzysztof": null,
+        "Dec": null,
+        "Ćwieku": null,
+        "Sapcio": null
+      },
+      "points": {
+        "Kamil": 0,
+        "Piotrek": 0,
+        "Kubuś": 0,
+        "Dzik": 0,
+        "Krzyś": 0,
+        "Lewy": 0,
+        "Krzysztof": 0,
+        "Dec": 0,
+        "Ćwieku": 0,
+        "Sapcio": 0
+      }
+    },
+    {
+      "round": 1,
+      "competition": "La Liga",
+      "home": "Ath. Bilbao",
+      "away": "Sevilla",
+      "homeScore": null,
+      "awayScore": null,
+      "predictions": {
+        "Kamil": null,
+        "Piotrek": null,
+        "Kubuś": null,
+        "Dzik": null,
+        "Krzyś": null,
+        "Lewy": null,
+        "Krzysztof": null,
+        "Dec": null,
+        "Ćwieku": null,
+        "Sapcio": null
+      },
+      "points": {
+        "Kamil": 0,
+        "Piotrek": 0,
+        "Kubuś": 0,
+        "Dzik": 0,
+        "Krzyś": 0,
+        "Lewy": 0,
+        "Krzysztof": 0,
+        "Dec": 0,
+        "Ćwieku": 0,
+        "Sapcio": 0
+      }
+    },
+    {
+      "round": 1,
+      "competition": "La Liga",
+      "home": "Getafe",
+      "away": "Racing Santander",
+      "homeScore": null,
+      "awayScore": null,
+      "predictions": {
+        "Kamil": null,
+        "Piotrek": null,
+        "Kubuś": null,
+        "Dzik": null,
+        "Krzyś": null,
+        "Lewy": null,
+        "Krzysztof": null,
+        "Dec": null,
+        "Ćwieku": null,
+        "Sapcio": null
+      },
+      "points": {
+        "Kamil": 0,
+        "Piotrek": 0,
+        "Kubuś": 0,
+        "Dzik": 0,
+        "Krzyś": 0,
+        "Lewy": 0,
+        "Krzysztof": 0,
+        "Dec": 0,
+        "Ćwieku": 0,
+        "Sapcio": 0
+      }
+    },
+    {
+      "round": 1,
+      "competition": "Serie A",
+      "home": "Inter",
+      "away": "Monza",
+      "homeScore": null,
+      "awayScore": null,
+      "predictions": {
+        "Kamil": null,
+        "Piotrek": null,
+        "Kubuś": null,
+        "Dzik": null,
+        "Krzyś": null,
+        "Lewy": null,
+        "Krzysztof": null,
+        "Dec": null,
+        "Ćwieku": null,
+        "Sapcio": null
+      },
+      "points": {
+        "Kamil": 0,
+        "Piotrek": 0,
+        "Kubuś": 0,
+        "Dzik": 0,
+        "Krzyś": 0,
+        "Lewy": 0,
+        "Krzysztof": 0,
+        "Dec": 0,
+        "Ćwieku": 0,
+        "Sapcio": 0
+      }
+    },
+    {
+      "round": 1,
+      "competition": "Serie A",
+      "home": "Torino",
+      "away": "AC Milan",
+      "homeScore": null,
+      "awayScore": null,
+      "predictions": {
+        "Kamil": null,
+        "Piotrek": null,
+        "Kubuś": null,
+        "Dzik": null,
+        "Krzyś": null,
+        "Lewy": null,
+        "Krzysztof": null,
+        "Dec": null,
+        "Ćwieku": null,
+        "Sapcio": null
+      },
+      "points": {
+        "Kamil": 0,
+        "Piotrek": 0,
+        "Kubuś": 0,
+        "Dzik": 0,
+        "Krzyś": 0,
+        "Lewy": 0,
+        "Krzysztof": 0,
+        "Dec": 0,
+        "Ćwieku": 0,
+        "Sapcio": 0
+      }
+    },
+    {
+      "round": 1,
+      "competition": "Ekstraklasa",
+      "home": "Śląsk Wrocław",
+      "away": "Widzew Łódź",
+      "homeScore": null,
+      "awayScore": null,
+      "predictions": {
+        "Kamil": null,
+        "Piotrek": null,
+        "Kubuś": null,
+        "Dzik": null,
+        "Krzyś": null,
+        "Lewy": null,
+        "Krzysztof": null,
+        "Dec": null,
+        "Ćwieku": null,
+        "Sapcio": null
+      },
+      "points": {
+        "Kamil": 0,
+        "Piotrek": 0,
+        "Kubuś": 0,
+        "Dzik": 0,
+        "Krzyś": 0,
+        "Lewy": 0,
+        "Krzysztof": 0,
+        "Dec": 0,
+        "Ćwieku": 0,
+        "Sapcio": 0
+      }
+    },
+    {
+      "round": 1,
+      "competition": "La Liga",
+      "home": "Atl. Madryt",
+      "away": "Villarreal",
+      "homeScore": null,
+      "awayScore": null,
+      "predictions": {
+        "Kamil": null,
+        "Piotrek": null,
+        "Kubuś": null,
+        "Dzik": null,
+        "Krzyś": null,
+        "Lewy": null,
+        "Krzysztof": null,
+        "Dec": null,
+        "Ćwieku": null,
+        "Sapcio": null
+      },
+      "points": {
+        "Kamil": 0,
+        "Piotrek": 0,
+        "Kubuś": 0,
+        "Dzik": 0,
+        "Krzyś": 0,
+        "Lewy": 0,
+        "Krzysztof": 0,
+        "Dec": 0,
+        "Ćwieku": 0,
+        "Sapcio": 0
+      }
+    }
+  ],
+  "matchPlayers": [
+    "Kamil",
+    "Piotrek",
+    "Kubuś",
+    "Dzik",
+    "Krzyś",
+    "Lewy",
+    "Krzysztof",
+    "Dec",
+    "Ćwieku",
+    "Sapcio"
+  ],
+  "msPlayers": [
+    "Kamil",
+    "Piotrek",
+    "Kubuś",
+    "Dzik",
+    "Krzyś",
+    "Lewy",
+    "Krzysztof",
+    "Dec",
+    "Ćwieku",
+    "Sapcio"
+  ],
+  "msRows": [
+    {
+      "league": "Premier League",
+      "type": "Mistrz",
+      "picks": {
+        "Kamil": "—",
+        "Piotrek": "—",
+        "Kubuś": "—",
+        "Dzik": "—",
+        "Krzyś": "—",
+        "Lewy": "—",
+        "Krzysztof": "—",
+        "Dec": "—",
+        "Ćwieku": "—",
+        "Sapcio": "—"
+      }
+    },
+    {
+      "league": "Premier League",
+      "type": "Spadkowicz",
+      "picks": {
+        "Kamil": "—",
+        "Piotrek": "—",
+        "Kubuś": "—",
+        "Dzik": "—",
+        "Krzyś": "—",
+        "Lewy": "—",
+        "Krzysztof": "—",
+        "Dec": "—",
+        "Ćwieku": "—",
+        "Sapcio": "—"
+      }
+    },
+    {
+      "league": "Premier League",
+      "type": "Spadkowicz",
+      "picks": {
+        "Kamil": "—",
+        "Piotrek": "—",
+        "Kubuś": "—",
+        "Dzik": "—",
+        "Krzyś": "—",
+        "Lewy": "—",
+        "Krzysztof": "—",
+        "Dec": "—",
+        "Ćwieku": "—",
+        "Sapcio": "—"
+      }
+    },
+    {
+      "league": "La Liga",
+      "type": "Mistrz",
+      "picks": {
+        "Kamil": "Real Madryt",
+        "Piotrek": "Atl. Madryt",
+        "Kubuś": "Barcelona",
+        "Dzik": "Barcelona",
+        "Krzyś": "Real Madryt",
+        "Lewy": "Real Madryt",
+        "Krzysztof": "Real Madryt",
+        "Dec": "Real Madryt",
+        "Ćwieku": "Real Madryt",
+        "Sapcio": "Barcelona"
+      }
+    },
+    {
+      "league": "La Liga",
+      "type": "Spadkowicz",
+      "picks": {
+        "Kamil": "Deportivo La Coruna",
+        "Piotrek": "Racing Santander",
+        "Kubuś": "Alaves",
+        "Dzik": "Racing Santander",
+        "Krzyś": "Malaga",
+        "Lewy": "Racing Santander",
+        "Krzysztof": "Malga",
+        "Dec": "Racing Santander",
+        "Ćwieku": "Levante",
+        "Sapcio": "Racing Santander"
+      }
+    },
+    {
+      "league": "La Liga",
+      "type": "Spadkowicz",
+      "picks": {
+        "Kamil": "Elche",
+        "Piotrek": "Levante",
+        "Kubuś": "Elche",
+        "Dzik": "Elche",
+        "Krzyś": "Elche",
+        "Lewy": "Elche",
+        "Krzysztof": "Elche",
+        "Dec": "Elche",
+        "Ćwieku": "Elche",
+        "Sapcio": "Malaga"
+      }
+    },
+    {
+      "league": "Bundesliga",
+      "type": "Mistrz",
+      "picks": {
+        "Kamil": "—",
+        "Piotrek": "—",
+        "Kubuś": "—",
+        "Dzik": "—",
+        "Krzyś": "—",
+        "Lewy": "—",
+        "Krzysztof": "—",
+        "Dec": "—",
+        "Ćwieku": "—",
+        "Sapcio": "—"
+      }
+    },
+    {
+      "league": "Bundesliga",
+      "type": "Spadkowicz",
+      "picks": {
+        "Kamil": "—",
+        "Piotrek": "—",
+        "Kubuś": "—",
+        "Dzik": "—",
+        "Krzyś": "—",
+        "Lewy": "—",
+        "Krzysztof": "—",
+        "Dec": "—",
+        "Ćwieku": "—",
+        "Sapcio": "—"
+      }
+    },
+    {
+      "league": "Bundesliga",
+      "type": "Spadkowicz",
+      "picks": {
+        "Kamil": "—",
+        "Piotrek": "—",
+        "Kubuś": "—",
+        "Dzik": "—",
+        "Krzyś": "—",
+        "Lewy": "—",
+        "Krzysztof": "—",
+        "Dec": "—",
+        "Ćwieku": "—",
+        "Sapcio": "—"
+      }
+    },
+    {
+      "league": "Serie A",
+      "type": "Mistrz",
+      "picks": {
+        "Kamil": "—",
+        "Piotrek": "—",
+        "Kubuś": "—",
+        "Dzik": "—",
+        "Krzyś": "—",
+        "Lewy": "—",
+        "Krzysztof": "—",
+        "Dec": "—",
+        "Ćwieku": "—",
+        "Sapcio": "—"
+      }
+    },
+    {
+      "league": "Serie A",
+      "type": "Spadkowicz",
+      "picks": {
+        "Kamil": "—",
+        "Piotrek": "—",
+        "Kubuś": "—",
+        "Dzik": "—",
+        "Krzyś": "—",
+        "Lewy": "—",
+        "Krzysztof": "—",
+        "Dec": "—",
+        "Ćwieku": "—",
+        "Sapcio": "—"
+      }
+    },
+    {
+      "league": "Serie A",
+      "type": "Spadkowicz",
+      "picks": {
+        "Kamil": "—",
+        "Piotrek": "—",
+        "Kubuś": "—",
+        "Dzik": "—",
+        "Krzyś": "—",
+        "Lewy": "—",
+        "Krzysztof": "—",
+        "Dec": "—",
+        "Ćwieku": "—",
+        "Sapcio": "—"
+      }
+    },
+    {
+      "league": "Liga Mistrzów",
+      "type": "Mistrz",
+      "picks": {
+        "Kamil": "—",
+        "Piotrek": "—",
+        "Kubuś": "—",
+        "Dzik": "—",
+        "Krzyś": "—",
+        "Lewy": "—",
+        "Krzysztof": "—",
+        "Dec": "—",
+        "Ćwieku": "—",
+        "Sapcio": "—"
+      }
+    },
+    {
+      "league": "Liga Europy",
+      "type": "Mistrz",
+      "picks": {
+        "Kamil": "—",
+        "Piotrek": "—",
+        "Kubuś": "—",
+        "Dzik": "—",
+        "Krzyś": "—",
+        "Lewy": "—",
+        "Krzysztof": "—",
+        "Dec": "—",
+        "Ćwieku": "—",
+        "Sapcio": "—"
+      }
+    },
+    {
+      "league": "Ekstraklasa",
+      "type": "Mistrz",
+      "picks": {
+        "Kamil": "Lech Poznań",
+        "Piotrek": "Legia Warszawa",
+        "Kubuś": "Lech Poznań",
+        "Dzik": "Legia Warszawa",
+        "Krzyś": "Legia Warszawa",
+        "Lewy": "Lech Poznań",
+        "Krzysztof": "Legia Warszawa",
+        "Dec": "Lech Poznań",
+        "Ćwieku": "Legia Warszawa",
+        "Sapcio": "Lech Poznań"
+      }
+    },
+    {
+      "league": "Ekstraklasa",
+      "type": "Spadkowicz",
+      "picks": {
+        "Kamil": "Wieczysta Kraków",
+        "Piotrek": "Korona Kielce",
+        "Kubuś": "Wieczysta Kraków",
+        "Dzik": "Radomiak",
+        "Krzyś": "Korona Kielce",
+        "Lewy": "Wisła Płock",
+        "Krzysztof": "Motor Lublin",
+        "Dec": "Zagłębie Lubin",
+        "Ćwieku": "Radomiak",
+        "Sapcio": "Wieczysta Kraków"
+      }
+    },
+    {
+      "league": "Ekstraklasa",
+      "type": "Spadkowicz",
+      "picks": {
+        "Kamil": "Radomiak",
+        "Piotrek": "Piast Gliwice",
+        "Kubuś": "Widzew Łódź",
+        "Dzik": "Wisła Płock",
+        "Krzyś": "Widzew Łódź",
+        "Lewy": "Zagłębie Lubin",
+        "Krzysztof": "Cracovia",
+        "Dec": "Radomiak",
+        "Ćwieku": "Piast Gliwice",
+        "Sapcio": "Zagłęcie Lubin"
+      }
+    }
+  ],
+  "bobrTable": [
+    {
+      "pos": 1,
+      "name": "Krzysztof",
+      "bobry": 1
+    },
+    {
+      "pos": 2,
+      "name": "Dzik",
+      "bobry": 0
+    },
+    {
+      "pos": 3,
+      "name": "Dec",
+      "bobry": 0
+    },
+    {
+      "pos": 4,
+      "name": "Ćwieku",
+      "bobry": 0
+    },
+    {
+      "pos": 5,
+      "name": "Sapcio",
+      "bobry": 0
+    },
+    {
+      "pos": 6,
+      "name": "Kamil",
+      "bobry": 0
+    },
+    {
+      "pos": 7,
+      "name": "Krzyś",
+      "bobry": 0
+    },
+    {
+      "pos": 8,
+      "name": "Kubuś",
+      "bobry": 0
+    },
+    {
+      "pos": 9,
+      "name": "Piotrek",
+      "bobry": 0
+    },
+    {
+      "pos": 10,
+      "name": "Lewy",
+      "bobry": 0
+    }
+  ],
+  "bobrHistory": [
+    {
+      "round": 1,
+      "winner": "Krzysztof",
+      "pts": 5,
+      "three": 1,
+      "two": 0,
+      "one": 2,
+      "tie": false
+    }
+  ]
+}
